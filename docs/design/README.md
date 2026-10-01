@@ -1,6 +1,6 @@
 # Apple TV visual concept review
 
-Created 2026-10-01 with the built-in imagegen tool. This is one coordinated visual direction across five screens, awaiting the owner's approval before application development.
+Created 2026-10-01 with the built-in imagegen tool. This is one coordinated visual direction across five screens, approved by the owner for native tvOS implementation on 2026-10-01.
 
 ## Direction
 
@@ -51,6 +51,6 @@ These are proposed interactions; no behavior has been implemented or tested. The
 
 ## Review and next step
 
-Approve this visual direction or request changes to its palette, density, imagery or navigation. The next phase is an implementation plan that verifies media compatibility, Tailscale connectivity, provider matching and native tvOS interaction before coding on the Mac. No application development begins until the owner approves.
+Approve this visual direction or request changes to its palette, density, imagery or navigation. The next phase is an implementation plan that verifies media compatibility, Tailscale connectivity, provider matching and native tvOS interaction before coding on the Mac. The owner has approved this direction; implementation follows `../implementation/PLAN.md`.
 
 The five PNGs are the saved review deliverables. [PROMPTS.md](PROMPTS.md) records the initial prompts and subsequent targeted edits. The generated images were visually inspected for page coverage, readable labels, search number input, chronological year tiles and correctly scoped shuffle actions. This is visual inspection, not device or usability testing.
