@@ -8,12 +8,12 @@ struct LibraryShell: View {
     @State private var showConnection = false
     @State private var featured: FeaturedArtwork?
     @State private var requestedArtwork = false
-    private let tabs: [(String, Page)] = [("Home", .home), ("Search", .search), ("Artists", .artists), ("Years", .years), ("Decades", .decades)]
+    private let tabs: [(String, Page)] = [("Home", .home), ("Search", .search), ("Playlists", .playlists), ("Artists", .artists), ("Years", .years), ("Decades", .decades)]
     var body: some View {
         NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 HStack(spacing: 24) {
-                    Text("mvideo").font(.system(size: 38, weight: .bold)).fixedSize().padding(.trailing, 60)
+                    Text("mvideo").font(.system(size: 38, weight: .bold)).fixedSize().padding(.trailing, 24)
                     ForEach(tabs, id: \.0) { label, page in
                         Button { tab = page } label: {
                             VStack(spacing: 9) {
@@ -68,6 +68,8 @@ struct NavigationStyle: ButtonStyle {
 @MainActor @Observable final class BrowseModel {
     var videos: [Video] = []
     var facets: [Facet] = []
+    var playlists: [Playlist] = []
+    var playlist: Playlist?
     var total = 0
     var nextOffset: Int?
     var revision: Int?
@@ -80,9 +82,13 @@ struct NavigationStyle: ButtonStyle {
         if more && loading { return }
         let generation = UUID(); self.generation = generation
         loading = true; error = nil
-        if !more { videos = []; facets = []; nextOffset = nil; metadata = nil }
+        if !more { videos = []; facets = []; playlists = []; playlist = nil; nextOffset = nil; metadata = nil }
         do {
-            if let kind = page.facet {
+            if page == .playlists {
+                let result: PlaylistPage = try await api.request("/api/playlists")
+                guard self.generation == generation, !Task.isCancelled else { return }
+                playlists = result.items; total = result.items.count
+            } else if let kind = page.facet {
                 let result: FacetPage = try await api.request("/api/facets/" + kind, query: [URLQueryItem(name: "q", value: scope.q), .init(name: "offset", value: String(more ? nextOffset ?? 0 : 0))])
                 guard self.generation == generation, !Task.isCancelled else { return }
                 facets = more ? facets + result.items : result.items
@@ -92,6 +98,11 @@ struct NavigationStyle: ButtonStyle {
                 guard self.generation == generation, !Task.isCancelled else { return }
                 videos = more ? videos + result.items : result.items
                 total = result.total; nextOffset = result.nextOffset; revision = result.revision
+                if let id = scope.playlist, !more {
+                    let detail: Playlist = try await api.request("/api/playlists/" + id)
+                    guard self.generation == generation, !Task.isCancelled else { return }
+                    playlist = detail
+                }
             }
             loadedScope = scope; loading = false
             if case .artist(let name) = page, !more {
@@ -130,6 +141,7 @@ struct BrowseScreen: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var returnOffset: CGFloat = 0
     @FocusState private var focus: String?
+    @Environment(\.scenePhase) private var scenePhase
     private var scope: Scope {
         var result = page.scope; result.q = query; result.field = searchField; return result
     }
@@ -150,11 +162,12 @@ struct BrowseScreen: View {
                     if let error = playbackError {
                         stateMessage("Couldn’t start playback", message: error, action: "Dismiss") { playbackError = nil }
                     }
-                    if model.loading && model.videos.isEmpty && model.facets.isEmpty { ProgressView("Loading your library…").padding(40) }
+                    if model.loading && model.videos.isEmpty && model.facets.isEmpty && model.playlists.isEmpty { ProgressView("Loading your library…").padding(40) }
                     else if model.total == 0 && model.error == nil {
-                        stateMessage(page == .search ? "No matching videos" : "Your collection is on its way", message: page == .search ? "Try another artist, song title or year." : "Scan the library on your PC, then refresh this page.", action: "Refresh") { reload() }
+                        stateMessage(page == .search ? "No matching videos" : (page == .playlists || scope.playlist != nil ? "Your next great mix" : "Your collection is on its way"), message: page == .search ? "Try another artist, song title or year." : (page == .playlists || scope.playlist != nil ? "Add videos in Playlist studio using your browser, then refresh here." : "Scan the library on your PC, then refresh this page."), action: "Refresh") { reload() }
                     }
-                    if page.facet != nil { facetGrid }
+                    if page == .playlists { playlistGrid }
+                    else if page.facet != nil { facetGrid }
                     else { videoGrid }
                     if model.nextOffset != nil {
                         Button(model.loading ? "Loading…" : "Load more") { Task { await model.load(api: api, page: page, scope: scope, more: true) } }
@@ -185,6 +198,9 @@ struct BrowseScreen: View {
             guard !Task.isCancelled else { return }
             await model.load(api: api, page: page, scope: scope)
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && (page == .playlists || scope.playlist != nil) && !showingPlayer { reload() }
+        }
         .fullScreenCover(isPresented: $showingPlayer, onDismiss: {
             player?.stop(); player = nil; restoreCounter += 1
         }) {
@@ -199,7 +215,7 @@ struct BrowseScreen: View {
     }
     private var hero: some View {
         ZStack(alignment: .leading) {
-            if page.facet == nil && page != .search {
+            if page.facet == nil && page != .search && page != .playlists {
                 GeometryReader { geometry in
                     Artwork(url: heroURL, fallbackURL: model.videos.first?.thumbnail.flatMap { try? api.connection.url($0) }).frame(width: geometry.size.width * 0.68, height: geometry.size.height)
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -209,23 +225,33 @@ struct BrowseScreen: View {
             }
             VStack(alignment: .leading, spacing: 20) {
                 Text(page.eyebrow).font(.system(size: 17, weight: .medium)).tracking(5).foregroundStyle(Theme.amber)
-                Text(page.title).font(.system(size: heroFontSize, weight: .bold)).lineSpacing(-5).lineLimit(2).minimumScaleFactor(0.65)
+                Text(model.playlist?.name ?? page.title).font(.system(size: heroFontSize, weight: .bold)).lineSpacing(-5).lineLimit(2).minimumScaleFactor(0.65)
                     .frame(maxWidth: page == .home ? 900 : 1300, alignment: .leading)
                 if page != .search {
-                    Text("\(model.total.formatted()) \(page.facet == nil ? "videos in your library" : page.facet ?? "items")")
+                    Text("\(model.total.formatted()) \(page == .playlists ? "playlists" : (scope.playlist != nil ? "available videos" : (page.facet == nil ? "videos in your library" : page.facet ?? "items")))")
                         .font(.system(size: 28)).foregroundStyle(Theme.secondary)
+                }
+                if let playlist = model.playlist {
+                    Text(playlist.description).font(.system(size: 24)).foregroundStyle(Theme.secondary).lineLimit(3).frame(maxWidth: 1000, alignment: .leading)
+                    if playlist.count > playlist.availableCount {
+                        Text("\(playlist.count - playlist.availableCount) unavailable videos will be skipped.").font(.system(size: 21)).foregroundStyle(Theme.amber)
+                    }
+                }
+                if page == .playlists {
+                    Text("Create and edit in your browser: \(api.connection.origin.absoluteString)/studio/").font(.system(size: 22)).foregroundStyle(Theme.secondary)
+                    Button("Refresh playlists") { reload() }.buttonStyle(PillStyle()).accessibilityIdentifier("refresh-playlists")
                 }
                 if case .artist = page {
                     Text(model.metadata?.biography ?? (model.metadata?.pending == true ? "Finding artist photos and biography…" : "Artist information is unavailable for this match."))
                         .font(.system(size: 24)).foregroundStyle(Theme.secondary).lineLimit(2).frame(maxWidth: 850, alignment: .leading)
                 }
-                if page.facet == nil && page != .search { actions }
+                if page.facet == nil && page != .search && page != .playlists { actions }
                 if page == .home, let featured {
                     Text("\(featured.artist) · fanart.tv").font(.system(size: 17)).foregroundStyle(Theme.secondary)
                         .accessibilityIdentifier("home-artwork-credit")
                 }
             }.padding(.vertical, page == .search ? 30 : 50)
-        }.frame(minHeight: page == .search || page.facet != nil ? 220 : 480)
+        }.frame(minHeight: page == .search || page.facet != nil || page == .playlists ? 220 : 480)
     }
     private var heroFontSize: CGFloat { if case .year = page { return 142 }; return page == .home ? 84 : 78 }
     private var actions: some View {
@@ -240,6 +266,22 @@ struct BrowseScreen: View {
             }
             if case .artist = page { Button("Biography") { showingBiography = true } }
         }.buttonStyle(PillStyle()).disabled(model.total == 0 || launching).focusSection()
+    }
+    private var playlistGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 26), count: 3), spacing: 32) {
+            ForEach(model.playlists) { playlist in
+                NavigationLink(value: Page.playlist(playlist.id, playlist.name)) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Color.clear.aspectRatio(16 / 9, contentMode: .fit)
+                            .overlay { Artwork(url: playlist.thumbnail.flatMap { try? api.connection.url($0) }) }
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        Text(playlist.name).font(.system(size: 27, weight: .semibold)).lineLimit(2)
+                        Text("\(playlist.availableCount) videos").font(.system(size: 21)).foregroundStyle(Theme.secondary)
+                        Text(playlist.description).font(.system(size: 20)).foregroundStyle(Theme.secondary).lineLimit(2)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(CardStyle()).accessibilityIdentifier("playlist-" + playlist.id)
+            }
+        }.focusSection()
     }
     private var search: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -260,6 +302,9 @@ struct BrowseScreen: View {
         }
     }
     @ViewBuilder private var rails: some View {
+        if scope.playlist != nil {
+            Button("Refresh playlist") { reload() }.buttonStyle(PillStyle()).accessibilityIdentifier("refresh-playlist")
+        }
         if case .year(let year) = page {
             ScrollView(.horizontal) {
                 HStack(spacing: 18) {

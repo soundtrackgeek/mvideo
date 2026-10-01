@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS pairing(id INTEGER PRIMARY KEY CHECK(id=1), hash TEXT
 CREATE TABLE IF NOT EXISTS metadata(artist TEXT PRIMARY KEY, data TEXT NOT NULL, expires INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS identities(artist TEXT PRIMARY KEY, mbid TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS overrides(id TEXT PRIMARY KEY, artist TEXT, title TEXT NOT NULL, year INTEGER);
+CREATE TABLE IF NOT EXISTS playlists(
+ id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+ version INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playlist_items(
+ playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+ video_id TEXT NOT NULL REFERENCES videos(id), position INTEGER NOT NULL,
+ PRIMARY KEY(playlist_id, video_id), UNIQUE(playlist_id, position)
+);
+CREATE TABLE IF NOT EXISTS playlist_seeds(
+ key TEXT PRIMARY KEY, playlist_id TEXT REFERENCES playlists(id) ON DELETE SET NULL
+);
 """
 
 
@@ -33,6 +45,7 @@ class Database:
     def connect(self):
         db = sqlite3.connect(self.path, timeout=30)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
         try:
             yield db
             db.commit()

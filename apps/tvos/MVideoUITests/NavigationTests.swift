@@ -14,7 +14,7 @@ final class NavigationTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["nav-home"].waitForExistence(timeout: 10))
         let remote = XCUIRemote.shared
-        remote.press(.right); remote.press(.right); remote.press(.select)
+        remote.press(.right); remote.press(.right); remote.press(.right); remote.press(.select)
         XCTAssertTrue(app.staticTexts["The artists you love."].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["fanart.tv"].firstMatch.waitForExistence(timeout: 60))
         saveScreenshot(app, name: "Artist grid upgrades to fanart.tv photography")
@@ -76,7 +76,7 @@ final class NavigationTests: XCTestCase {
         XCTAssertTrue(app.buttons["done"].waitForNonExistence(timeout: 5))
         for _ in 0..<5 where !app.buttons["nav-search"].hasFocus { remote.press(.up) }
         XCTAssertTrue(app.buttons["nav-search"].hasFocus)
-        remote.press(.right); remote.press(.select)
+        remote.press(.right); remote.press(.right); remote.press(.select)
         XCTAssertTrue(app.staticTexts["The artists you love."].waitForExistence(timeout: 10))
         saveScreenshot(app, name: "Artist image tiles")
         remote.press(.right); remote.press(.select)
@@ -85,7 +85,7 @@ final class NavigationTests: XCTestCase {
         remote.press(.right); remote.press(.select)
         XCTAssertTrue(app.staticTexts["A lifetime of music."].waitForExistence(timeout: 10))
         saveScreenshot(app, name: "Decade image tiles")
-        for _ in 0..<4 { remote.press(.left) }
+        for _ in 0..<5 { remote.press(.left) }
         remote.press(.select)
         XCTAssertTrue(app.buttons["shuffle"].waitForExistence(timeout: 10))
         remote.press(.down)
@@ -108,6 +108,43 @@ final class NavigationTests: XCTestCase {
         waitForExpectations(timeout: 5)
         let samePosition = NSPredicate { _, _ in abs(app.buttons[identifier].frame.minY - originalFrame.minY) < 4 }
         expectation(for: samePosition, evaluatedWith: app.buttons[identifier])
+        waitForExpectations(timeout: 5)
+    }
+    func testPlaylistsBrowseAndPlayback() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launch()
+        try XCTSkipUnless(app.buttons["nav-home"].waitForExistence(timeout: 10), "Pair the simulator with the running library.")
+        let remote = XCUIRemote.shared
+        remote.press(.right); remote.press(.right)
+        XCTAssertTrue(app.buttons["nav-playlists"].hasFocus)
+        remote.press(.select)
+        XCTAssertTrue(app.buttons["refresh-playlists"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Eurodance"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Glam metal & hard rock"].exists)
+        XCTAssertTrue(app.staticTexts["Chart toppers"].exists)
+        saveScreenshot(app, name: "Shared playlists on Apple TV")
+        for _ in 0..<8 {
+            if app.buttons.matching(NSPredicate(format: "hasFocus == true AND identifier BEGINSWITH 'playlist-'")).firstMatch.exists { break }
+            remote.press(.down)
+        }
+        let selected = app.buttons.matching(NSPredicate(format: "hasFocus == true AND identifier BEGINSWITH 'playlist-'")).firstMatch
+        XCTAssertTrue(selected.exists, app.debugDescription)
+        remote.press(.select)
+        XCTAssertTrue(app.buttons["refresh-playlist"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["shuffle"].exists)
+        saveScreenshot(app, name: "Ordered playlist videos")
+        for _ in 0..<8 {
+            if app.buttons.matching(NSPredicate(format: "hasFocus == true AND identifier BEGINSWITH 'video-'")).firstMatch.exists { break }
+            remote.press(.down)
+        }
+        let video = app.buttons.matching(NSPredicate(format: "hasFocus == true AND identifier BEGINSWITH 'video-'")).firstMatch
+        XCTAssertTrue(video.exists, app.debugDescription)
+        let identifier = video.identifier
+        remote.press(.select)
+        XCTAssertTrue(app.otherElements["playback-screen"].waitForExistence(timeout: 40))
+        remote.press(.menu)
+        XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 10))
+        expectation(for: NSPredicate(format: "hasFocus == true"), evaluatedWith: app.buttons[identifier])
         waitForExpectations(timeout: 5)
     }
     private func saveScreenshot(_ app: XCUIApplication, name: String) {

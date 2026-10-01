@@ -16,6 +16,8 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('scan'); sub.add_parser('pair'); sub.add_parser('revoke-all')
     sub.add_parser('report')
+    starters=sub.add_parser('seed-playlists',help='Resolve curated starter mixes against the catalog')
+    starters.add_argument('--apply',action='store_true',help='Save once; otherwise preview matched and missing songs')
     identity=sub.add_parser('identity'); identity.add_argument('artist'); identity.add_argument('mbid')
     override=sub.add_parser('override'); override.add_argument('id'); override.add_argument('--artist'); override.add_argument('--title',required=True); override.add_argument('--year',type=int)
     serve=sub.add_parser('serve'); serve.add_argument('--host',default='127.0.0.1'); serve.add_argument('--port',type=int,default=8765)
@@ -39,6 +41,9 @@ def main():
             threading.Thread(target=scan_loop,daemon=True,name='mvideo-scan').start()
         uvicorn.run(app,host=args.host,port=args.port,access_log=False,log_level='warning')
     elif args.command=='scan':print(json.dumps(Library(settings,database).scan()))
+    elif args.command=='seed-playlists':
+        from .playlists import starter_playlists
+        print(json.dumps(starter_playlists(database,apply=args.apply),indent=2,ensure_ascii=False))
     elif args.command=='pair':print('One-time code (5 minutes, 5 attempts): '+Auth(database).pair_code())
     elif args.command=='revoke-all':
         with database.connect() as db:db.execute('DELETE FROM sessions')

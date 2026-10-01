@@ -58,6 +58,15 @@ struct FeaturedArtwork: Decodable {
 struct FeaturedResponse: Decodable { let item: FeaturedArtwork? }
 struct PlaybackResponse: Decodable { let state: String; let mode: String; let url: String?; let error: String? }
 struct QueueResponse: Decodable { let ids: [String]; let revision: Int }
+struct Playlist: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let description: String
+    let count: Int
+    let availableCount: Int
+    let thumbnail: String?
+}
+struct PlaylistPage: Decodable { let items: [Playlist] }
 struct Scope: Codable, Hashable {
     var q = ""
     var artist: String?
@@ -65,17 +74,19 @@ struct Scope: Codable, Hashable {
     var decade: Int?
     var unknown = false
     var field = "all"
+    var playlist: String?
     var query: [URLQueryItem] {
         var items = [URLQueryItem(name: "q", value: q), URLQueryItem(name: "field", value: field)]
         if let artist { items.append(.init(name: "artist", value: artist)) }
         if let year { items.append(.init(name: "year", value: String(year))) }
         if let decade { items.append(.init(name: "decade", value: String(decade))) }
         if unknown { items.append(.init(name: "unknown", value: "true")) }
+        if let playlist { items.append(.init(name: "playlist", value: playlist)) }
         return items
     }
 }
 enum Page: Hashable {
-    case home, search, artists, years, decades, artist(String), year(Int), decade(Int), unknown
+    case home, search, artists, years, decades, playlists, playlist(String, String), artist(String), year(Int), decade(Int), unknown
     var title: String {
         switch self {
         case .home: "Your own music\ntelevision."
@@ -83,6 +94,8 @@ enum Page: Hashable {
         case .artists: "The artists you love."
         case .years: "Every year. Your story."
         case .decades: "A lifetime of music."
+        case .playlists: "Made for the moment."
+        case .playlist(_, let name): name
         case .artist(let name): name
         case .year(let year): String(year)
         case .decade(let decade): "The \(decade)s"
@@ -95,6 +108,7 @@ enum Page: Hashable {
         case .artist: "ARTIST"
         case .year: "THE YEAR IN MUSIC VIDEOS"
         case .decade: "A DECADE OF MUSIC TELEVISION"
+        case .playlist: "YOUR PLAYLIST"
         default: "YOUR LIBRARY"
         }
     }
@@ -104,6 +118,7 @@ enum Page: Hashable {
         case .year(let year): Scope(year: year)
         case .decade(let decade): Scope(decade: decade)
         case .unknown: Scope(unknown: true)
+        case .playlist(let id, _): Scope(playlist: id)
         default: Scope()
         }
     }

@@ -54,3 +54,7 @@ These are proposed interactions; no behavior has been implemented or tested. The
 Approve this visual direction or request changes to its palette, density, imagery or navigation. The next phase is an implementation plan that verifies media compatibility, Tailscale connectivity, provider matching and native tvOS interaction before coding on the Mac. The owner has approved this direction; implementation follows `../implementation/PLAN.md`.
 
 The five PNGs are the saved review deliverables. [PROMPTS.md](PROMPTS.md) records the initial prompts and subsequent targeted edits. The generated images were visually inspected for page coverage, readable labels, search number input, chronological year tiles and correctly scoped shuffle actions. This is visual inspection, not device or usability testing.
+
+## Playlist studio — 0.5.0
+
+The browser companion extends this visual direction with a three-column playlist editor. [Design and browser verification](PLAYLIST-STUDIO.md) records the generated reference, real implementation, mobile adaptation and tested editing workflow.

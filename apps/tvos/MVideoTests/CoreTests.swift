@@ -34,6 +34,18 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(Page.artist("a-ha").scope.artist, "a-ha")
         XCTAssertTrue(Page.unknown.scope.unknown)
     }
+    func testPlaylistScopeAndSummary() throws {
+        let page = Page.playlist("mix-id", "Eurodance")
+        XCTAssertEqual(page.scope.playlist, "mix-id")
+        XCTAssertEqual(page.scope.query.first(where: { $0.name == "playlist" })?.value, "mix-id")
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(page.scope)) as! [String: Any]
+        XCTAssertEqual(object["playlist"] as? String, "mix-id")
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let data = Data(#"{"id":"mix-id","name":"Eurodance","description":"Dance classics","count":3,"available_count":2,"thumbnail":null}"#.utf8)
+        let playlist = try decoder.decode(Playlist.self, from: data)
+        XCTAssertEqual(playlist.availableCount, 2)
+        XCTAssertEqual(playlist.count, 3)
+    }
     func testDecodeServerVideo() throws {
         let data = Data(#"{"id":"a","artist":"a-ha","title":"Take On Me","year":1985,"thumbnail":"/image/a/ticket","warnings":[],"probe_error":null}"#.utf8)
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase

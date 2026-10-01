@@ -1,0 +1,531 @@
+[
+  {
+    "key": "eurodance-v1",
+    "name": "Eurodance",
+    "description": "Big hooks and dance-floor classics: 2 Unlimited, Haddaway, Snap!, Culture Beat, Dr. Alban and more. A handpicked 1990s mix.",
+    "tracks": [
+      {
+        "artist": "2 Unlimited",
+        "title": "No Limit"
+      },
+      {
+        "artist": "Haddaway",
+        "title": "What Is Love"
+      },
+      {
+        "artist": "Snap!",
+        "title": "Rhythm is a Dancer"
+      },
+      {
+        "artist": "Culture Beat",
+        "title": "Mr. Vain"
+      },
+      {
+        "artist": "Corona",
+        "title": "The Rhythm of the Night"
+      },
+      {
+        "artist": "Dr. Alban",
+        "title": "It's my life"
+      },
+      {
+        "artist": "La Bouche",
+        "title": "Be My Lover"
+      },
+      {
+        "artist": "Real McCoy",
+        "title": "Another Night"
+      },
+      {
+        "artist": "E-Type",
+        "title": "This Is The Way"
+      },
+      {
+        "artist": "Masterboy",
+        "title": "Feel The Heat Of The Night"
+      },
+      {
+        "artist": "Ice Mc",
+        "title": "Think About The Way"
+      },
+      {
+        "artist": "Whigfield",
+        "title": "Saturday Night"
+      },
+      {
+        "artist": "Captain Hollywood Project",
+        "title": "More and More"
+      },
+      {
+        "artist": "Captain Jack",
+        "title": "Captain Jack"
+      },
+      {
+        "artist": "2 Unlimited",
+        "title": "Get Ready For This"
+      },
+      {
+        "artist": "Snap!",
+        "title": "The Power"
+      },
+      {
+        "artist": "Culture Beat",
+        "title": "Got To Get It"
+      },
+      {
+        "artist": "Corona",
+        "title": "Baby Baby"
+      },
+      {
+        "artist": "Dr. Alban",
+        "title": "Sing Hallelujah"
+      },
+      {
+        "artist": "La Bouche",
+        "title": "Sweet Dreams"
+      },
+      {
+        "artist": "Real McCoy",
+        "title": "Run Away"
+      },
+      {
+        "artist": "E-Type",
+        "title": "Set The World On Fire"
+      },
+      {
+        "artist": "Masterboy",
+        "title": "Generation Of Love"
+      },
+      {
+        "artist": "Ice Mc",
+        "title": "It's a Rainy Day"
+      },
+      {
+        "artist": "Whigfield",
+        "title": "Another Day"
+      },
+      {
+        "artist": "Captain Hollywood Project",
+        "title": "Only With You"
+      },
+      {
+        "artist": "Captain Jack",
+        "title": "Drill Instructor"
+      },
+      {
+        "artist": "2 Unlimited",
+        "title": "Tribal Dance"
+      },
+      {
+        "artist": "Culture Beat",
+        "title": "Anything"
+      },
+      {
+        "artist": "Corona",
+        "title": "Try Me Out"
+      },
+      {
+        "artist": "Dr. Alban",
+        "title": "One Love"
+      },
+      {
+        "artist": "E-Type",
+        "title": "Angels Crying"
+      },
+      {
+        "artist": "Ice Mc",
+        "title": "Take away the colour"
+      },
+      {
+        "artist": "Captain Hollywood Project",
+        "title": "Flying High"
+      },
+      {
+        "artist": "2 Unlimited",
+        "title": "The Real Thing"
+      },
+      {
+        "artist": "Dr. Alban",
+        "title": "No Coke"
+      },
+      {
+        "artist": "E-Type",
+        "title": "Here I Go Again"
+      }
+    ]
+  },
+  {
+    "key": "glam-hard-rock-v1",
+    "name": "Glam metal & hard rock",
+    "description": "Sunset Strip swagger, arena-sized choruses and power ballads. Bon Jovi, Mötley Crüe, Def Leppard, Poison, Ratt and friends.",
+    "tracks": [
+      {
+        "artist": "Bon Jovi",
+        "title": "Livin' On A Prayer"
+      },
+      {
+        "artist": "Def Leppard",
+        "title": "Pour Some Sugar On Me"
+      },
+      {
+        "artist": "Mötley Crüe",
+        "title": "Kickstart My Heart"
+      },
+      {
+        "artist": "Poison",
+        "title": "Nothin' But A Good Time"
+      },
+      {
+        "artist": "Ratt",
+        "title": "Round And Round"
+      },
+      {
+        "artist": "Warrant",
+        "title": "Cherry Pie"
+      },
+      {
+        "artist": "Skid Row",
+        "title": "Youth Gone Wild"
+      },
+      {
+        "artist": "Cinderella",
+        "title": "Gypsy Road"
+      },
+      {
+        "artist": "Winger",
+        "title": "Seventeen"
+      },
+      {
+        "artist": "Europe",
+        "title": "The Final Countdown"
+      },
+      {
+        "artist": "Guns N' Roses",
+        "title": "Sweet Child O' Mine"
+      },
+      {
+        "artist": "Van Halen",
+        "title": "Jump"
+      },
+      {
+        "artist": "Bon Jovi",
+        "title": "You Give Love A Bad Name"
+      },
+      {
+        "artist": "Def Leppard",
+        "title": "Photograph"
+      },
+      {
+        "artist": "Mötley Crüe",
+        "title": "Girls, Girls, Girls"
+      },
+      {
+        "artist": "Poison",
+        "title": "Talk Dirty To Me"
+      },
+      {
+        "artist": "Ratt",
+        "title": "Lay It Down"
+      },
+      {
+        "artist": "Warrant",
+        "title": "Heaven"
+      },
+      {
+        "artist": "Skid Row",
+        "title": "18 And Life"
+      },
+      {
+        "artist": "Cinderella",
+        "title": "Nobody's Fool"
+      },
+      {
+        "artist": "Winger",
+        "title": "Headed For A Heartbreak"
+      },
+      {
+        "artist": "Europe",
+        "title": "Rock the Night"
+      },
+      {
+        "artist": "Guns N' Roses",
+        "title": "Welcome To The Jungle"
+      },
+      {
+        "artist": "Van Halen",
+        "title": "Panama"
+      },
+      {
+        "artist": "Bon Jovi",
+        "title": "Wanted Dead Or Alive"
+      },
+      {
+        "artist": "Def Leppard",
+        "title": "Animal"
+      },
+      {
+        "artist": "Mötley Crüe",
+        "title": "Dr. Feelgood"
+      },
+      {
+        "artist": "Poison",
+        "title": "Every Rose Has Its Thorn"
+      },
+      {
+        "artist": "Ratt",
+        "title": "Way Cool Jr."
+      },
+      {
+        "artist": "Warrant",
+        "title": "Uncle Tom's Cabin"
+      },
+      {
+        "artist": "Skid Row",
+        "title": "I Remember You"
+      },
+      {
+        "artist": "Cinderella",
+        "title": "Don't Know What You Got"
+      },
+      {
+        "artist": "Winger",
+        "title": "Miles Away"
+      },
+      {
+        "artist": "Europe",
+        "title": "Superstitious"
+      },
+      {
+        "artist": "Guns N' Roses",
+        "title": "Paradise City"
+      },
+      {
+        "artist": "Van Halen",
+        "title": "Hot For Teacher"
+      },
+      {
+        "artist": "Bon Jovi",
+        "title": "Bad Medicine"
+      },
+      {
+        "artist": "Def Leppard",
+        "title": "Love Bites"
+      },
+      {
+        "artist": "Mötley Crüe",
+        "title": "Home Sweet Home"
+      },
+      {
+        "artist": "Poison",
+        "title": "Unskinny Bop"
+      },
+      {
+        "artist": "Guns N' Roses",
+        "title": "November Rain"
+      },
+      {
+        "artist": "Van Halen",
+        "title": "Why Can't This Be Love"
+      }
+    ]
+  },
+  {
+    "key": "chart-toppers-v1",
+    "name": "Chart toppers",
+    "description": "Familiar hits that reached the UK Official Singles Chart Top 10. Song peaks checked against Official Charts; library video years are kept as catalogued.",
+    "tracks": [
+      {
+        "artist": "a-ha",
+        "title": "Take On Me",
+        "chart": "UK Official Singles Chart",
+        "peak": 2,
+        "source": "https://www.officialcharts.com/songs/a-ha-take-on-me/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Madonna",
+        "title": "Like A Prayer",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/madonna-like-a-prayer/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Michael Jackson",
+        "title": "Billie Jean",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/michael-jackson-billie-jean/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Whitney Houston",
+        "title": "I Will Always Love You",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/whitney-houston-i-will-always-love-you/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Queen",
+        "title": "Radio Ga Ga",
+        "chart": "UK Official Singles Chart",
+        "peak": 2,
+        "source": "https://www.officialcharts.com/songs/queen-radio-ga-ga/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Rick Astley",
+        "title": "Never Gonna Give You Up",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/rick-astley-never-gonna-give-you-up/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Cher",
+        "title": "Believe",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/cher-believe/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Europe",
+        "title": "The Final Countdown",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/europe-the-final-countdown/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Tears For Fears",
+        "title": "Everybody Wants To Rule The World",
+        "chart": "UK Official Singles Chart",
+        "peak": 2,
+        "source": "https://www.officialcharts.com/songs/tears-for-fears-everybody-wants-to-rule-the-world/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Duran Duran",
+        "title": "The Reflex",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/duran-duran-the-reflex/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "ABBA",
+        "title": "Dancing Queen",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/abba-dancing-queen/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Pet Shop Boys",
+        "title": "West End Girls",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/pet-shop-boys-west-end-girls/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Eurythmics",
+        "title": "Sweet Dreams (Are Made of This)",
+        "chart": "UK Official Singles Chart",
+        "peak": 2,
+        "source": "https://www.officialcharts.com/songs/eurythmics-sweet-dreams-are-made-of-this/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "George Michael",
+        "title": "Careless Whisper",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/george-michael-careless-whisper/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Bryan Adams",
+        "title": "(Everything I Do) I Do It For You",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/bryan-adams-everything-i-do-i-do-it-for-you/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Céline Dion",
+        "title": "My Heart Will Go On",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/celine-dion-my-heart-will-go-on/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Roxette",
+        "title": "It Must Have Been Love",
+        "chart": "UK Official Singles Chart",
+        "peak": 3,
+        "source": "https://www.officialcharts.com/songs/roxette-it-must-have-been-love/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Bon Jovi",
+        "title": "Livin' On A Prayer",
+        "chart": "UK Official Singles Chart",
+        "peak": 4,
+        "source": "https://www.officialcharts.com/songs/bon-jovi-livin-on-a-prayer/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "a-ha",
+        "title": "The Sun Always Shines on T.V.",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/a-ha-the-sun-always-shines-on-tv/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Madonna",
+        "title": "Like A Virgin",
+        "chart": "UK Official Singles Chart",
+        "peak": 3,
+        "source": "https://www.officialcharts.com/songs/madonna-like-a-virgin/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Michael Jackson",
+        "title": "Black Or White",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/michael-jackson-black-or-white/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "ABBA",
+        "title": "Mamma Mia",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/abba-mamma-mia/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Madonna",
+        "title": "Vogue",
+        "chart": "UK Official Singles Chart",
+        "peak": 1,
+        "source": "https://www.officialcharts.com/songs/madonna-vogue/",
+        "checked": "2026-10-01"
+      },
+      {
+        "artist": "Queen",
+        "title": "I Want To Break Free",
+        "chart": "UK Official Singles Chart",
+        "peak": 3,
+        "source": "https://www.officialcharts.com/songs/queen-i-want-to-break-free/",
+        "checked": "2026-10-01"
+      }
+    ]
+  }
+]

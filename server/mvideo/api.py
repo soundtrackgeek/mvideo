@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from typing import Literal
 from fastapi import FastAPI, Depends, HTTPException, Query, Header
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from pydantic import BaseModel, Field
 import threading
 import subprocess
@@ -11,6 +13,7 @@ from .database import Database
 from .library import Library
 from .metadata import Metadata
 from .playback import Playback, make_queue
+from .playlists import Playlists, PlaylistConflict
 
 
 class PairRequest(BaseModel):
@@ -24,6 +27,17 @@ class Scope(BaseModel):
     decade: int | None = Field(default=None,ge=1880,le=2100)
     unknown: bool = False
     field: Literal['all','artist','title','year'] = 'all'
+    playlist: str | None = Field(default=None,max_length=64)
+
+
+class PlaylistWrite(BaseModel):
+    name: str = Field(min_length=1,max_length=120)
+    description: str = Field(default='',max_length=2000)
+    ids: list[str] = Field(default_factory=list,max_length=5000)
+
+
+class PlaylistUpdate(PlaylistWrite):
+    version: int = Field(ge=1)
 
 
 class QueueRequest(Scope):
@@ -39,18 +53,31 @@ def create_app(settings=None):
     auth=Auth(database)
     playback=Playback(settings,library)
     metadata=Metadata(database,settings)
+    playlists=Playlists(database)
     @asynccontextmanager
     async def lifespan(app):
         yield
         playback.close()
         metadata.close()
-    app=FastAPI(title='mvideo',version='0.4.1',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.5.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
+    app.state.playlists=playlists
+
+    @app.middleware('http')
+    async def response_headers(request, call_next):
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+        if request.url.path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store'
+        if request.url.path == '/' or request.url.path.startswith('/studio'):
+            response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+        return response
 
     def session(authorization: str = Header(default='')):
         if not authorization.startswith('Bearer '):
-            raise HTTPException(401,'Pair this Apple TV with the server')
+            raise HTTPException(401,'Pair this device with the server')
         value=auth.authenticate(authorization[7:])
         if not value:
             raise HTTPException(401,'Session expired; pair again')
@@ -66,7 +93,47 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.4.1'}
+    def health(): return {'service':'mvideo','version':'0.5.0'}
+
+    def playlist_result(value, sid):
+        data = value.copy()
+        cover = data.pop('cover_id', None)
+        data['thumbnail'] = '/image/'+cover+'/'+auth.ticket(sid,'image:'+cover) if cover else None
+        if 'items' in data:
+            data['items'] = [public(r,sid) | {'available':bool(r['available'])} for r in data['items']]
+        return data
+
+    def playlist_call(action):
+        try: return action()
+        except FileNotFoundError as error: raise HTTPException(404,str(error))
+        except PlaylistConflict as error: raise HTTPException(409,str(error))
+        except ValueError as error: raise HTTPException(422,str(error))
+
+    def check_playlist(scope):
+        if scope.playlist is not None:
+            with database.connect() as db:
+                playlist_call(lambda: playlists.require(db,scope.playlist))
+
+    @app.get('/api/playlists')
+    def playlist_list(sid=Depends(session)):
+        return {'items':[playlist_result(p,sid) for p in playlists.list()]}
+
+    @app.post('/api/playlists',status_code=201)
+    def playlist_create(body:PlaylistWrite,sid=Depends(session)):
+        return playlist_result(playlist_call(lambda:playlists.save(**body.model_dump())),sid)
+
+    @app.get('/api/playlists/{identity}')
+    def playlist_detail(identity:str,sid=Depends(session)):
+        return playlist_result(playlist_call(lambda:playlists.get(identity)),sid)
+
+    @app.put('/api/playlists/{identity}')
+    def playlist_update(identity:str,body:PlaylistUpdate,sid=Depends(session)):
+        return playlist_result(playlist_call(lambda:playlists.save(identity=identity,**body.model_dump())),sid)
+
+    @app.delete('/api/playlists/{identity}')
+    def playlist_delete(identity:str,version:int=Query(ge=1),sid=Depends(session)):
+        playlist_call(lambda:playlists.delete(identity,version))
+        return {'ok':True}
 
     @app.post('/api/pair')
     def pair(body:PairRequest):
@@ -93,6 +160,7 @@ def create_app(settings=None):
 
     @app.get('/api/videos')
     def videos(scope:Scope=Depends(),limit:int=Query(48,ge=1,le=100),offset:int=Query(0,ge=0),revision:int|None=None,sid=Depends(session)):
+        check_playlist(scope)
         result=library.videos(limit=limit,offset=offset,**scope.model_dump())
         if revision is not None and result['revision']!=revision:
             raise HTTPException(409,'Library changed; refresh this page')
@@ -143,6 +211,7 @@ def create_app(settings=None):
 
     @app.post('/api/queue')
     def queue(body:QueueRequest,sid=Depends(session)):
+        check_playlist(body)
         try:ids=make_queue(library.ids(**body.model_dump(exclude={'shuffle','start'})),body.shuffle,body.start)
         except ValueError as error:raise HTTPException(409,str(error))
         return {'ids':ids,'revision':database.revision()}
@@ -178,4 +247,10 @@ def create_app(settings=None):
         try:path=metadata.image(name,index)
         except Exception:raise HTTPException(404,'Artist artwork unavailable')
         return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
+    web = Path(__file__).parent/'web'
+    if web.is_dir():
+        @app.get('/')
+        def studio_home():
+            return FileResponse(web/'index.html',headers={'Cache-Control':'no-cache'})
+        app.mount('/studio',StaticFiles(directory=web,html=True),name='studio')
     return app

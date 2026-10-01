@@ -29,3 +29,7 @@ library-report.json
 diagnostics.txt
 startup-report.json
 boot-check.*
+
+# Playlist studio dependencies
+node_modules/
+server/build/

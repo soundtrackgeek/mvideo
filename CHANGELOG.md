@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2026-10-01
+
+### Added
+
+- Shared, ordered server playlists with authenticated create/read/update/delete, atomic saves, conflict detection, unavailable-video retention and complete ordered/shuffled queues.
+- Apple TV Playlists navigation, cover thumbnails, descriptions, counts, refresh, continuous playback and restored focus.
+- Browser Playlist studio on the existing private server: pairing, drag-and-drop, search/decade filters, accessible reorder controls, rename/remove/delete, unsaved-change protection and responsive layouts.
+- Catalog-matched starters: Eurodance (37 videos), Glam metal & hard rock (42), and Chart toppers (24 verified UK Top 10 songs), with reproducible recipes and chart sources.
+- Preview/apply CLI seeding that preserves later edits and deletions; packaged web assets requiring no Node.js on Windows.
+
+### Changed
+
+- Upgrade the Windows service and tvOS app to 0.5.0, build 4; deploy and populate the server, and deliver the Apple-processed build to the existing internal TestFlight group.
+
 ## [0.4.1] - 2026-10-01
 
 ### Fixed

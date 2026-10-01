@@ -2,11 +2,44 @@
 
 A native Apple TV music video app backed by an independent Windows library and streaming service. The five [approved designs](docs/design/README.md) guide the charcoal, warm-white and amber interface. The collection spans every era present in the files.
 
-The Windows service and native tvOS app are implemented. The app supports artist/title/year search, artist biographies and fanart.tv photography, year/decade browsing, full-selection shuffle, continuous playback, queue controls and return to the previous focused video and scroll position. Home chooses a random fanart.tv background from verified artists in the library at launch, keeps it stable while browsing, and falls back to a video thumbnail.
+The Windows service and native tvOS app are implemented. The app supports shared playlists with a browser editor, artist/title/year search, artist biographies and fanart.tv photography, year/decade browsing, full-selection shuffle, continuous playback, queue controls and return to the previous focused video and scroll position. Home chooses a random fanart.tv background from verified artists in the library at launch, keeps it stable while browsing, and falls back to a video thumbnail.
 
 Artist tiles and pages automatically look up fanart.tv photography as you browse. The server matches artists against MusicBrainz recording credits using songs in your library, then caches their photos. Tiles replace temporary video stills when photos arrive; unmatched artists or missing provider photos keep the fallback. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
 
-The real Windows catalog contains **15,559 videos**. Version **0.4.1 (3)** is available in the dedicated **mvideo testers** TestFlight group. The requested invitation to `jtillnes2@yahoo.com` was accepted; update mvideo through TestFlight on Apple TV. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
+The real Windows catalog contains **15,559 videos**. Version **0.5.0 (4)** is available in the dedicated **mvideo testers** TestFlight group. The requested invitation to `jtillnes2@yahoo.com` was accepted; update mvideo through TestFlight on Apple TV. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
+
+## Playlists and browser editor
+
+Open **[Playlist studio](https://jorncomputer.tail5ef358.ts.net:8443/studio/)** from a computer or phone on your tailnet. The editor is served by mvideo itself; no separate account, web host or public endpoint is needed. Pair the browser with a fresh eight-digit code from `scripts/windows-start.ps1 -Pair` on the PC. The browser keeps its session in this tab’s session storage; Disconnect revokes it.
+
+The server now contains **Eurodance (37 videos)**, **Glam metal & hard rock (42)** and **Chart toppers (24)**. These are handpicked songs from your catalog, with artists interleaved. Chart toppers uses verified UK Top 10 singles. See the [complete track lists and chart sources](docs/playlists.md).
+
+- Create a playlist, search by artist/title/year, and narrow results by decade. Search results are paginated across the full catalog.
+- Drag a video into the playlist, or use **Add**. Drag rows to change their order; the up/down buttons also work with keyboard and touch. Duplicate video IDs are prevented.
+- Rename, edit the description, remove videos and choose **Save changes**. Unsaved work is protected when switching playlists or closing the tab. If another editor saved first, your draft stays visible and the server refuses to overwrite it; **Reload saved playlist** retrieves the current version after confirming that you want to discard your draft.
+- On Apple TV, open **Playlists**, choose a mix and use **Play all**, **Shuffle selection**, or select a video. Saved order is preserved, and playback includes the whole playlist. Use **Refresh playlists** / **Refresh playlist** after editing; returning from the background refreshes these screens too.
+- Playlists belong to the shared server library, so every paired device can read and edit them. Up to 5,000 distinct videos per playlist are supported. Unavailable videos remain visible in the editor and are skipped by playback; deleting a playlist leaves the media files intact.
+
+Starter recipes can be previewed and installed on another indexed server:
+
+```sh
+mvideo seed-playlists          # preview matching/missing songs
+mvideo seed-playlists --apply  # create each starter once, preserving later edits/deletions
+```
+
+Playlist records and ordered video references are stored in the existing SQLite database. Back up the state directory using SQLite’s backup API (or with the service stopped). The schema is added automatically on startup.
+
+The React/Vite source is in `apps/web`; the compiled editor is included in the Python package, so Windows does not need Node.js at runtime. After editing the web source, rebuild and commit the generated assets:
+
+```sh
+npm ci --prefix apps/web
+npm run build --prefix apps/web
+npm test --prefix apps/web
+# Optional development server; mvideo API must run on localhost:8765:
+npm run dev --prefix apps/web
+```
+
+Authenticated API: `GET/POST /api/playlists`, `GET/PUT/DELETE /api/playlists/{id}`. Writes use `{name, description, ids}`; updates additionally require the last read `version`, and deletion requires `?version=N`. Conflicts return 409. `/api/videos?playlist=ID` and `/api/queue` with `{playlist: ID, shuffle: true}` support the same search filters as the library. There is no cross-origin API access; host the editor on the server origin.
 
 ## Library service
 

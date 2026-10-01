@@ -136,7 +136,7 @@ class Library:
         db.execute("DELETE FROM search WHERE id=?", (identity,))
         db.execute("INSERT INTO search VALUES(?,?,?,?)", (identity, data["artist"] or "", data["title"], str(data["year"] or "")))
 
-    def scope(self, q="", artist=None, year=None, decade=None, unknown=False, field="all"):
+    def scope(self, q="", artist=None, year=None, decade=None, unknown=False, field="all", playlist=None):
         clauses, params = ["available=1"], []
         words = re.findall(r"[^\W_]+", q, flags=re.UNICODE)
         if q.strip():
@@ -155,22 +155,33 @@ class Library:
             clauses.append("year BETWEEN ? AND ?"); params += [decade, decade + 9]
         if unknown:
             clauses.append("year IS NULL")
+        if playlist is not None:
+            clauses.append("id IN (SELECT video_id FROM playlist_items WHERE playlist_id=?)")
+            params.append(playlist)
         return " AND ".join(clauses), params
+
+    @staticmethod
+    def ordering(scope):
+        if scope.get('playlist') is not None:
+            return '(SELECT position FROM playlist_items WHERE playlist_id=? AND video_id=videos.id)', [scope['playlist']]
+        return 'artist COLLATE NOCASE,title COLLATE NOCASE,id', []
 
     def videos(self, limit=48, offset=0, **scope):
         where, params = self.scope(**scope)
+        order, order_params = self.ordering(scope)
         with self.database.connect() as db:
             db.execute("BEGIN")
             revision = db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0]
             total = db.execute(f"SELECT count(*) FROM videos WHERE {where}", params).fetchone()[0]
-            rows = db.execute(f"SELECT * FROM videos WHERE {where} ORDER BY artist COLLATE NOCASE,title COLLATE NOCASE,id LIMIT ? OFFSET ?", [*params, limit, offset]).fetchall()
+            rows = db.execute(f"SELECT * FROM videos WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?", [*params, *order_params, limit, offset]).fetchall()
         return {"items": [self.public(r) for r in rows], "total": total, "offset": offset,
                 "next_offset": offset+limit if offset+limit < total else None, "revision": revision}
 
     def ids(self, **scope):
         where, params = self.scope(**scope)
+        order, order_params = self.ordering(scope)
         with self.database.connect() as db:
-            return [r[0] for r in db.execute(f"SELECT id FROM videos WHERE {where} ORDER BY artist COLLATE NOCASE,title COLLATE NOCASE,id", params)]
+            return [r[0] for r in db.execute(f"SELECT id FROM videos WHERE {where} ORDER BY {order}", [*params, *order_params])]
 
     def get(self, identity):
         with self.database.connect() as db:
