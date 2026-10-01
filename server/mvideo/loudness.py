@@ -40,7 +40,7 @@ def parse_measurement(log):
 
 
 @contextmanager
-def scan_lock(path):
+def scan_lock(path, label='loudness scan'):
     with path.open('a+b') as handle:
         if handle.tell() == 0:
             handle.write(b'0')
@@ -54,7 +54,7 @@ def scan_lock(path):
                 import fcntl
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
-            raise RuntimeError('Another loudness scan is running or its lock is unavailable') from error
+            raise RuntimeError(f'Another {label} is running or its lock is unavailable') from error
         try:
             yield
         finally:

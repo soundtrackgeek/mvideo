@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0] - 2026-10-01
+
+### Added
+
+- Full 15,559-file naming audit and explicit repair plan with 183 renames, six owner-supplied year corrections, and a temporary move aside for the unknown-year Matt Cox video.
+- Preview-first `mvideo fix-filenames` command and Windows launcher. Explicit apply backs up SQLite, preserves source content/mtime, migrates playlist references, overrides, search and loudness measurements, and journals each move for interruption recovery.
+- A sibling Needs Review folder for explicitly listed videos, with unavailable catalog entries retaining their references for later restoration. Conflicting destinations, changed sources and concurrent library/loudness scans block repairs.
+- Regression coverage for the entire bundled repair plan, references and cached measurements, collision handling, interrupted moves, automatic-scan recovery, manual-review reporting and temporary removal/restoration.
+
+### Changed
+
+- Share Windows Python/service-configuration discovery between the loudness and filename launchers, retaining separate-checkout support and explicit path overrides.
+- Server source/package version is 0.8.0. Filename changes require running the maintenance command on the Windows PC; no service or Apple TV deployment is included.
+
 ## [0.7.1] - 2026-10-01
 
 ### Fixed

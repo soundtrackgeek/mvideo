@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import subprocess
+import sqlite3
 import sys
 import uuid
 from pathlib import Path
@@ -13,11 +14,14 @@ from .auth import Auth
 
 
 def main():
-    parser=argparse.ArgumentParser(description='mvideo read-only library service')
+    parser=argparse.ArgumentParser(description='mvideo library service and explicit maintenance commands')
     parser.add_argument('--env',help='Explicit local provider/configuration .env; never logged')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('scan'); sub.add_parser('pair'); sub.add_parser('revoke-all')
     sub.add_parser('report')
+    filenames=sub.add_parser('fix-filenames',help='Preview the reviewed filename repair plan; use --apply to rename and migrate catalog references')
+    filenames.add_argument('--apply',action='store_true')
+    filenames.add_argument('--plan',type=Path,help='Explicit reviewed JSON plan; defaults to the bundled library repair plan')
     loudness=sub.add_parser('measure-loudness',help='Measure catalog audio without changing media; resumes automatically')
     loudness.add_argument('--force',action='store_true',help='Remeasure unchanged videos too')
     loudness.add_argument('--limit',type=int,help='Process at most N uncached videos in this run')
@@ -50,6 +54,20 @@ def main():
             threading.Thread(target=scan_loop,daemon=True,name='mvideo-scan').start()
         uvicorn.run(app,host=args.host,port=args.port,access_log=False,log_level='warning')
     elif args.command=='scan':print(json.dumps(Library(settings,database).scan()))
+    elif args.command=='fix-filenames':
+        from .filenames import FilenameRepair, load_plan
+        try:
+            repair=FilenameRepair(settings,database)
+            plan=load_plan(args.plan)
+            result=repair.apply(plan,progress=lambda event: print(json.dumps(event),flush=True)) if args.apply else repair.preview(plan)
+            print(json.dumps(result,indent=2))
+            if result.get('conflict'): raise SystemExit(1)
+        except KeyboardInterrupt:
+            print('Interrupted. Rerun with --apply to recover any pending rename and continue.',file=sys.stderr)
+            raise SystemExit(130)
+        except (OSError,ValueError,RuntimeError,sqlite3.Error) as error:
+            print('Filename repair stopped: '+str(error),file=sys.stderr)
+            raise SystemExit(1)
     elif args.command=='measure-loudness':
         from .loudness import LoudnessScanner
         scanner=LoudnessScanner(settings,database)

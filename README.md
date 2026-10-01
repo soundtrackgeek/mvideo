@@ -45,6 +45,8 @@ Authenticated API: `GET/POST /api/playlists`, `GET/PUT/DELETE /api/playlists/{id
 
 Python 3.12+, FFmpeg/FFprobe on PATH. SQLite FTS5 indexes artist, song and year with paginated results. Scans compare size/mtime, retain ambiguous filenames for review and never write into the media root. Offline or incomplete directory walks retain the catalog. Metadata, thumbnails and converted playback copies live in a separate state directory.
 
+The explicit `fix-filenames --apply` maintenance command is an exception: it renames the files listed in a reviewed plan and can move listed unknown-year videos to a sibling review folder. Ordinary scanning, playback and loudness analysis remain read-only with respect to source media.
+
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -e './server[test]'
@@ -110,11 +112,27 @@ Artist matching is automatic when exact artist (or alias) and song-title credits
 
 Only set a manual MusicBrainz UUID after checking the artist's identity. Name-only Last.fm results remain candidates; they do not unlock photos by themselves. Metadata and missing matches are cached for 24 hours; transient failures retry after 15 minutes. Visible artist tiles and opened pages trigger a single background worker with a maximum of 64 pending artists, while the app refreshes results without blocking navigation. Requests are serialized at no more than one per second with rate-limit backoff and an identifying User-Agent. Artist pages carry Last.fm and fanart.tv credit/source links. No provider crawl is performed during scanning.
 
+#### Repair inconsistent filenames
+
+The **0.8.0 source** includes the [complete 15,559-file audit and reviewed repair list](docs/filename-repairs.md): **183 renames**, using the six years supplied by the owner, and **one move aside** for Matt Cox — Washed It All Away, whose year is unknown. The target format is `Artist - Title (Year).ext`. Existing clear years are retained; future unknown/ambiguous years are reported for manual decisions.
+
+Stop the loudness scan with Ctrl+C and close active playback/playlist editing before applying. Run from the updated checkout on the Windows PC:
+
+```powershell
+git pull --ff-only
+.\scripts\windows-fix-filenames.ps1          # preview; expect 184 ready actions for the audited library
+.\scripts\windows-fix-filenames.ps1 -Apply   # perform the listed moves and migrate the catalog
+```
+
+The launcher uses the same installed-service configuration/Python fallback as the loudness launcher; `-Library`, `-State`, `-PythonPath` and an optional `-Plan` JSON path are supported. Portable equivalents are `mvideo fix-filenames` and `mvideo fix-filenames --apply`. Each apply creates a SQLite backup under the state directory's `backups` folder, rejects destination conflicts and changed sources, and locks against concurrent catalog/loudness scans. Playlist references/order, metadata overrides and saved measurements migrate with the new filename-derived IDs. A durable journal supports resuming interrupted moves by rerunning `-Apply`.
+
+Matt Cox's file moves to `L:\MusicVideos - Needs Review` beside the current library and remains recorded as unavailable, preserving its references for later restoration. Media contents and modification times are retained. Refresh the Apple TV library after completion, then resume loudness analysis; thumbnails/conversions may regenerate under the new IDs. These source commands run against the existing service database without redeploying the service or Apple TV app. See the audit for every proposed name, the complete year-decision list, and recovery details.
+
 ### Playback and queues
 
 #### Measure audio loudness
 
-The **0.7.1 server source** includes a resumable audio measurement command for preparing volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. This command gathers measurements; the current Apple TV app does **not yet apply them** during playback. This source update has not been deployed to the Windows service or TestFlight.
+The server source includes a resumable audio measurement command for preparing volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. This command gathers measurements; the current Apple TV app does **not yet apply them** during playback. This source update has not been deployed to the Windows service or TestFlight.
 
 On the Windows PC, run from an updated mvideo source directory. The launcher uses that checkout's Python environment when present, or reuses the installed service's Python environment:
 

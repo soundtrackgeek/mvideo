@@ -38,6 +38,15 @@ CREATE TABLE IF NOT EXISTS audio_loudness(
  integrated_lufs REAL, true_peak_dbtp REAL, loudness_range_lu REAL, threshold_lufs REAL,
  audio_stream_index INTEGER, ffmpeg_version TEXT NOT NULL, measured_at INTEGER NOT NULL, error TEXT
 );
+CREATE TABLE IF NOT EXISTS filename_renames(
+ id INTEGER PRIMARY KEY, old_id TEXT NOT NULL, new_id TEXT NOT NULL,
+ old_path TEXT NOT NULL, new_path TEXT NOT NULL,
+ source_size INTEGER NOT NULL, source_mtime INTEGER NOT NULL,
+ original_row TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('pending','complete')),
+ action TEXT NOT NULL CHECK(action IN ('rename','hold')),
+ created_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS filename_renames_pending ON filename_renames(old_id) WHERE state='pending';
 """
 
 

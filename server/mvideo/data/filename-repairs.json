@@ -1,0 +1,928 @@
+{
+  "version": 1,
+  "catalog_count": 15559,
+  "repairs": [
+    {
+      "old_path": "5th Ward Boyz  One Night Stand (1995).mp4",
+      "new_path": "5th Ward Boyz - One Night Stand (1995).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Aaliyah -  Try Again (2000).mp4",
+      "new_path": "Aaliyah - Try Again (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "ABBA - Does Your Mother Know  (1979).mpg",
+      "new_path": "ABBA - Does Your Mother Know (1979).mpg",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "ABC - Stranger Things (1997s).webm",
+      "new_path": "ABC - Stranger Things (1997).webm",
+      "reason": "Year supplied by the library owner on 2026-10-01."
+    },
+    {
+      "old_path": "Alagados- De Frente Pro Crime (1986).mp4",
+      "new_path": "Os Paralamas Do Sucesso - Alagados + De Frente Pro Crime (1986).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Alex Call _Just Another Saturday Night (1983).mp4",
+      "new_path": "Alex Call - Just Another Saturday Night (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Amy Grant  The Things We Do For Love (1996).mp4",
+      "new_path": "Amy Grant - The Things We Do For Love (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "B. A.  Robertson - Kool In the Kaftan (1980).mp4",
+      "new_path": "B. A. Robertson - Kool In the Kaftan (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Barnes & Barnes – Fish Heads (1980) [HQ] (1080p_30fps_H264-128kbit_AAC).mp4",
+      "new_path": "Barnes & Barnes - Fish Heads (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Barnes & Barnes_ Love Tap (1981).mp4",
+      "new_path": "Barnes & Barnes - Love Tap (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Berlin ‎- Sex (1984).mp4",
+      "new_path": "Berlin - Sex (1984).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Billy Joel - Say Goodbye To Hollywood (1981)).mp4",
+      "new_path": "Billy Joel - Say Goodbye To Hollywood (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Bomb The Bass - The Air You Breathe (1991.mp4",
+      "new_path": "Bomb The Bass - The Air You Breathe (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Boy George ‎feat. Hi-Gate - High Fashion (2003).mp4",
+      "new_path": "Boy George feat. Hi-Gate - High Fashion (2003).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Boyz II Men - Thank You(1995).mp4",
+      "new_path": "Boyz II Men - Thank You (1995).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Brothers Like Outlaw - Good Vibrations (1992) .webm",
+      "new_path": "Brothers Like Outlaw - Good Vibrations (1992).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "BUSH - Warm Machine  (2000).mp4",
+      "new_path": "BUSH - Warm Machine (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Busta Rhymes ‎- Turn It Up (1998).mp4",
+      "new_path": "Busta Rhymes - Turn It Up (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Busta Rhymes ‎- Woo-Hah!! Got You All In Check (1996).mp4",
+      "new_path": "Busta Rhymes - Woo-Hah!! Got You All In Check (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "C-Block   So Strung Out (The Distance & Riddick Edit) (1996).mp4",
+      "new_path": "C-Block - So Strung Out (The Distance & Riddick Edit) (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "C-BLOCK   The Future Is So Bright (2000).mp4",
+      "new_path": "C-BLOCK - The Future Is So Bright (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Cheech & Chong  - I'm Not Home Right Now (1985).mp4",
+      "new_path": "Cheech & Chong - I'm Not Home Right Now (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Dave Hollister -  One Woman Man (2000).mp4",
+      "new_path": "Dave Hollister - One Woman Man (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "David Bowie  When The Wind Blows (1986).mp4",
+      "new_path": "David Bowie - When The Wind Blows (1986).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "David Hasselhoff  - Is Everybody Happy (1989).mp4",
+      "new_path": "David Hasselhoff - Is Everybody Happy (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "David Hasselhoff  - Je T´Aime Means I Love You (1989).mp4",
+      "new_path": "David Hasselhoff - Je T´Aime Means I Love You (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Deacon Blue - Hang Your Head (1993) .mp4",
+      "new_path": "Deacon Blue - Hang Your Head (1993).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Deja Gruv feat  Rakim -  You're Not Around (1996).mp4",
+      "new_path": "Deja Gruv feat Rakim - You're Not Around (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Diana Ross - Upside Down (1980)).mp4",
+      "new_path": "Diana Ross - Upside Down (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "DJ Spooky Peace In Zaire (1999).mp4",
+      "new_path": "DJ Spooky - Peace In Zaire (1999).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Dj Taylor & Flow Gott tanzte (1999).mp4",
+      "new_path": "Dj Taylor & Flow - Gott tanzte (1999).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "DMX, Method Man, Nas & Ja Rule ‎- The Grand Finale (1998).mp4",
+      "new_path": "DMX, Method Man, Nas & Ja Rule - The Grand Finale (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Donna Summer ‎- On The Radio (1979).webm",
+      "new_path": "Donna Summer - On The Radio (1979).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Down Low  I Wonder Why 1999  Youtube (1999).mp4",
+      "new_path": "Down Low - I Wonder Why (1999).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Dr  Hook - Sexy Eyes (1980).mp4",
+      "new_path": "Dr Hook - Sexy Eyes (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Dr. Bombay- S.O.S (1998).mp4",
+      "new_path": "Dr. Bombay - S.O.S (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "El President - Drugstore(1998).mp4",
+      "new_path": "Drugstore - El President (1998).mp4",
+      "reason": "Reviewed artist/title correction supported by linked release/video credits; preserve existing year."
+    },
+    {
+      "old_path": "Elton John & Millie Jackson - Act of war  1985 (1985).mp4",
+      "new_path": "Elton John & Millie Jackson - Act Of War (1985).mp4",
+      "reason": "Reviewed artist/title correction supported by linked release/video credits; preserve existing year."
+    },
+    {
+      "old_path": "Erasure – Voulez Vous (1992).mp4",
+      "new_path": "Erasure - Voulez Vous (1992).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "EURYTHMICS  - Never Gonna Cry Again  (1981).mp4",
+      "new_path": "EURYTHMICS - Never Gonna Cry Again (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Eurythmics - There Must Be An Angel (Playing With My Heart)(1985).mp4",
+      "new_path": "Eurythmics - There Must Be An Angel (Playing With My Heart) (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Faith Hill  I Can't Do That Anymore (1996).mp4",
+      "new_path": "Faith Hill - I Can't Do That Anymore (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Falco - Junge Römer - HQ 720p (1984).mp4",
+      "new_path": "Falco - Junge Römer (1984).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Farrenheit - Fool In Love.mp4",
+      "new_path": "Farrenheit - Fool In Love (1987).mp4",
+      "reason": "Year supplied by the library owner on 2026-10-01."
+    },
+    {
+      "old_path": "Feeder - Crash - Official Video (1997).mp4",
+      "new_path": "Feeder - Crash (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Feeder - Stereo World - Official Video (1996).mp4",
+      "new_path": "Feeder - Stereo World (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Feeder - Tangerine - Official Video (1997).mp4",
+      "new_path": "Feeder - Tangerine (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "FENIX TX -All My Fault HD720 (1997).mp4",
+      "new_path": "FENIX TX - All My Fault (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Flipmode Squad ‎- Everybody On The Line Outside (1998).mp4",
+      "new_path": "Flipmode Squad - Everybody On The Line Outside (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Flipmode Squad ‎– Cha Cha Cha (1998).mp4",
+      "new_path": "Flipmode Squad - Cha Cha Cha (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Fluffy Black Eye Best (1997).mp4",
+      "new_path": "Fluffy - Black Eye (1997).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Frank Sinatra & Bono ‎– I've Got You Under My Skin (1993).mp4",
+      "new_path": "Frank Sinatra & Bono - I've Got You Under My Skin (1993).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Full Force   Kiss Those Lips (1989).webm",
+      "new_path": "Full Force - Kiss Those Lips (1989).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Gabrielle - Every Step¨(2018).mp4",
+      "new_path": "Gabrielle - Every Step (2018).mp4",
+      "reason": "Reviewed artist/title correction supported by linked release/video credits; preserve existing year."
+    },
+    {
+      "old_path": "Geggy Tah – Whoever You Are (1996).mp4",
+      "new_path": "Geggy Tah - Whoever You Are (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "George Benson - Turn Your Love Around  (1981).mp4",
+      "new_path": "George Benson - Turn Your Love Around (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Gerry Rafferty - Baker Street (1978 ).mpg",
+      "new_path": "Gerry Rafferty - Baker Street (1978).mpg",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Gowan ~ Strange Animal (1985).mp4",
+      "new_path": "Gowan - Strange Animal (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Grace Jones - I've Seen That Face Before (1981)).mp4",
+      "new_path": "Grace Jones - I've Seen That Face Before (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Grandmaster Melle Mel ‎- White Lines (1983).mp4",
+      "new_path": "Grandmaster Melle Mel - White Lines (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Gregory Abbott - I Got The Feeling(1987).mp4",
+      "new_path": "Gregory Abbott - I Got The Feeling (1987).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Harry Connick Jr. The Bare Necessities (1991).mp4",
+      "new_path": "Harry Connick Jr. - The Bare Necessities (1991).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Haysi Fantayzee · Sister Friction (1983).mp4",
+      "new_path": "Haysi Fantayzee - Sister Friction (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Helen Terry & Ray Parker Jr. ~ One Summer Day_Dueling Bikes (1986).mp4",
+      "new_path": "Helen Terry & Ray Parker Jr. - One Summer Day (Dueling Bikes) (1986).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Helium - Pat's Trick (1995) .mp4",
+      "new_path": "Helium - Pat's Trick (1995).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Icehouse  - No Promises (US Club Mix) (1986).mp4",
+      "new_path": "Icehouse - No Promises (US Club Mix) (1986).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Inner City ‎- Do You Love What You Feel (1989).mp4",
+      "new_path": "Inner City - Do You Love What You Feel (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Israelism (1993).mpg",
+      "new_path": "Army Of Lovers - Israelism (1993).mpg",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Jaw -  Alec is Amused (2000).mp4",
+      "new_path": "Jaw - Alec is Amused (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Jeanette  - Go Back (2000).mp4",
+      "new_path": "Jeanette - Go Back (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Jeff Beck - Ambitious(1985).mp4",
+      "new_path": "Jeff Beck - Ambitious (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "JellyBean ‎- Who Found Who (1987).webm",
+      "new_path": "JellyBean - Who Found Who (1987).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "John Lennon Imagine (1971).mp4",
+      "new_path": "John Lennon - Imagine (1971).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "John Mellencamp  ft. Me'Shell Ndegeocello - Wild Night (1994).mp4",
+      "new_path": "John Mellencamp ft. Me'Shell Ndegeocello - Wild Night (1994).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Johnny Right -  I Wanna Be With You Tonight (1997).mp4",
+      "new_path": "Johnny Right - I Wanna Be With You Tonight (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Journey - Don't Stop Believin (1981)'.mp4",
+      "new_path": "Journey - Don't Stop Believin' (1981).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Juliet Roberts I Want You (1994).mp4",
+      "new_path": "Juliet Roberts - I Want You (1994).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Kane Gang - Respect Yourself  (1984).mp4",
+      "new_path": "Kane Gang - Respect Yourself (1984).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Kate Bush - Army Dreamers (1980)).mp4",
+      "new_path": "Kate Bush - Army Dreamers (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Keith Sweat ft Traci Hale  Just a Touch (1996).mp4",
+      "new_path": "Keith Sweat ft Traci Hale - Just a Touch (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Kenny Rogers &  Dolly Parton -  Islands In The Stream (1983).mp4",
+      "new_path": "Kenny Rogers & Dolly Parton - Islands In The Stream (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Kid Rock - Only God Knows Why (1998)).mp4",
+      "new_path": "Kid Rock - Only God Knows Why (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Killswitch Engage - A Bid Farewell I(2004).mp4",
+      "new_path": "Killswitch Engage - A Bid Farewell I (2004).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Kings of Swing- You Know I Love Ya baby (1994).mp4",
+      "new_path": "Kings of Swing - You Know I Love Ya baby (1994).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Krayzie Bone- Thug Mentality (1999).mp4",
+      "new_path": "Krayzie Bone - Thug Mentality (1999).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Kreator -  Betrayer (1989).mp4",
+      "new_path": "Kreator - Betrayer (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "L7 - Stuck Here Again(1994).mp4",
+      "new_path": "L7 - Stuck Here Again (1994).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Laurent Voulzy-Paradoxal systeme (1992).mp4",
+      "new_path": "Laurent Voulzy - Paradoxal systeme (1992).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Lethal - Immune (199!).mp4",
+      "new_path": "Lethal - Immune (1990).mp4",
+      "reason": "Year supplied by the library owner on 2026-10-01."
+    },
+    {
+      "old_path": "Limp Bizkit Take a look around (2000).mp4",
+      "new_path": "Limp Bizkit - Take a look around (2000).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Linga Nāc Dejot - Let's Dance(1988).mp4",
+      "new_path": "Linga Nāc Dejot - Let's Dance (1988).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Lionel Richie - Truly (1982)).mp4",
+      "new_path": "Lionel Richie - Truly (1982).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Lodger - Small Change - Pearl Lowe (1998).mp4",
+      "new_path": "Lodger - Small Change (1998).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Mack 10 -Only In California (1997).mp4",
+      "new_path": "Mack 10 - Only In California (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Madonna - Don't Tell Me (2000) [HD] (2000).mp4",
+      "new_path": "Madonna - Don't Tell Me (2000).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Magazine 60 -  Rendez Vous Sur La Costa Del Sol (1985).webm",
+      "new_path": "Magazine 60 - Rendez Vous Sur La Costa Del Sol (1985).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Malice Mizer- Le Ciel (1998).mp4",
+      "new_path": "Malice Mizer - Le Ciel (1998).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "MARILYN · Calling Your Name (1983).mp4",
+      "new_path": "MARILYN - Calling Your Name (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Mc Breed- Late Night Creep (1994).mp4",
+      "new_path": "Mc Breed - Late Night Creep (1994).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Meat Loaf - I'd Do Anything For Love  (But I Won't Do That) (1993).mp4",
+      "new_path": "Meat Loaf - I'd Do Anything For Love (But I Won't Do That) (1993).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Melissa Manchester – Thief Of Hearts (1984).webm",
+      "new_path": "Melissa Manchester - Thief Of Hearts (1984).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Michael Bolton - (Sittin' On) The Dock Of The Bay(1988).mp4",
+      "new_path": "Michael Bolton - (Sittin' On) The Dock Of The Bay (1988).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Michel Gondry - Snowbound - Donald Fagen (1993).mp4",
+      "new_path": "Donald Fagen - Snowbound (1993).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "MIKE & THE MECHANICS - Revolution  (1989).mp4",
+      "new_path": "MIKE & THE MECHANICS - Revolution (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Miki Howard- Love Under New Management (1989).mp4",
+      "new_path": "Miki Howard - Love Under New Management (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Miko Mission -Two For Love (1985).mp4",
+      "new_path": "Miko Mission - Two For Love (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Mint Condition - So Fine(1993) (1993).mp4",
+      "new_path": "Mint Condition - So Fine (1993).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Miss Kittin & The Hacker (1982).mpg",
+      "new_path": "Miss Kittin & The Hacker - 1982 (1998).mpg",
+      "reason": "Year supplied by the library owner on 2026-10-01."
+    },
+    {
+      "old_path": "Modern Rocketry - Homosexuality(1985).mp4",
+      "new_path": "Modern Rocketry - Homosexuality (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Mondo Rock - Summer Of `81  (1981).mp4",
+      "new_path": "Mondo Rock - Summer Of `81 (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Motörhead – Ace Of Spades (1980).mp4",
+      "new_path": "Motörhead - Ace Of Spades (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Mozart - Symphony No  25 (1985).mp4",
+      "new_path": "Mozart - Symphony No 25 (1985).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "My Army Of Lovers (1990).mpg",
+      "new_path": "Army Of Lovers - My Army Of Lovers (1990).mpg",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "New Edition ft  Missy - You Don't Have To Worry (Remix) (1996).mp4",
+      "new_path": "New Edition ft Missy - You Don't Have To Worry (Remix) (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Niagara -  Soleil D'hiver (1988).webm",
+      "new_path": "Niagara - Soleil D'hiver (1988).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Nina Hagen - Smack Jack  (1982).mp4",
+      "new_path": "Nina Hagen - Smack Jack (1982).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "NSYNC -Together Again (1997).mp4",
+      "new_path": "NSYNC - Together Again (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Orbital – The Box (1996).mp4",
+      "new_path": "Orbital - The Box (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Pat & Mick ‎– Shake Your Groove Thing (Extended Techno Mix) (1992).mp4",
+      "new_path": "Pat & Mick - Shake Your Groove Thing (Extended Techno Mix) (1992).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Paul Collins Beat  - Always Got You On My Mind (1983).mp4",
+      "new_path": "Paul Collins Beat - Always Got You On My Mind (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Paul Young - L-O-V-E (Love) (2016.mp4",
+      "new_path": "Paul Young - L-O-V-E (Love) (2016).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Peaches -  Fuck the Pain Away (2000).mp4",
+      "new_path": "Peaches - Fuck the Pain Away (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Peter Wolf  - Lights Out (1984).mp4",
+      "new_path": "Peter Wolf - Lights Out (1984).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Pink Floyd - Green Is The Colour 1969).mp4",
+      "new_path": "Pink Floyd - Green Is The Colour (1969).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Playahitty 1-2-3! (Train With Me) (1995).mp4",
+      "new_path": "Playahitty - 1-2-3! (Train With Me) (1995).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Poison - (Flesh & Blood) Sacrifice(1991).mp4",
+      "new_path": "Poison - (Flesh & Blood) Sacrifice (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Prairie Oyster Will I Do (1992).mp4",
+      "new_path": "Prairie Oyster - Will I Do (1992).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Praying Mantis - This Time Gir (1991)l.mp4",
+      "new_path": "Praying Mantis - This Time Girl (1991).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Quad City DJ’s – C’mon N’ Ride It (1996).mp4",
+      "new_path": "Quad City DJ’s - C’mon N’ Ride It (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Queen – Bohemian Rhapsody (1975).mp4",
+      "new_path": "Queen - Bohemian Rhapsody (1975).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "R. Kelly  Sex Me (1993).webm",
+      "new_path": "R. Kelly - Sex Me (1993).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Real McCoy - Automatic Lover (Call For Love) (1994)).mp4",
+      "new_path": "Real McCoy - Automatic Lover (Call For Love) (1994).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Righeira - Vamos A La Playa (1983) .webm",
+      "new_path": "Righeira - Vamos A La Playa (1983).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Rob 'N' Raz & DLC ‎– Big City Life (1993).mp4",
+      "new_path": "Rob 'N' Raz & DLC - Big City Life (1993).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Rozalla - Everybody's Free (To Feel Good) (UK Version) (1991)].mp4",
+      "new_path": "Rozalla - Everybody's Free (To Feel Good) (UK Version) (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Shade Sheist feat. Nate Dogg &  Kurupt - Where I Wanna Be (2000).mp4",
+      "new_path": "Shade Sheist feat. Nate Dogg & Kurupt - Where I Wanna Be (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Sheena Easton - 9 to 5 (Morning Train) (1980)).mp4",
+      "new_path": "Sheena Easton - 9 to 5 (Morning Train) (1980).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Sheena Easton_ Take My Time (1981).mp4",
+      "new_path": "Sheena Easton - Take My Time (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Smoothe Da Hustler   Hustler's Theme (1996).mp4",
+      "new_path": "Smoothe Da Hustler - Hustler's Theme (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Soft Cell - Tainted Love (1991 Version)(1991).mp4",
+      "new_path": "Soft Cell - Tainted Love (1991 Version) (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Soul Asylum - P-9‌ (1988).mp4",
+      "new_path": "Soul Asylum - P-9 (1988).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "SoulDecision  - Faded (2000).mp4",
+      "new_path": "SoulDecision - Faded (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Stone Temple Pilots -  No Way Out (2000).mp4",
+      "new_path": "Stone Temple Pilots - No Way Out (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Stray Cats- I Won't Stand In Your Way (1983).mp4",
+      "new_path": "Stray Cats - I Won't Stand In Your Way (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "SubSonica & BluVertigo- Disco Labirinto (1999).mp4",
+      "new_path": "SubSonica & BluVertigo - Disco Labirinto (1999).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Sugar Ray - Someday.mp4",
+      "new_path": "Sugar Ray - Someday (1999).mp4",
+      "reason": "Year supplied by the library owner on 2026-10-01."
+    },
+    {
+      "old_path": "Supertramp - You Win, I Lose  (1997).mp4",
+      "new_path": "Supertramp - You Win, I Lose (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Tha Truth! Feat. Keith Murray - Makin' Moves(1997).mp4",
+      "new_path": "Tha Truth! Feat. Keith Murray - Makin' Moves (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Adventures - Drowning In the Sea of Love  (1988).mp4",
+      "new_path": "The Adventures - Drowning In the Sea of Love (1988).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Art of Noise feat. Mahlathini And The Mahotella Queens ‎– Yebo! (1989).mp4",
+      "new_path": "The Art of Noise feat. Mahlathini And The Mahotella Queens - Yebo! (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Art Of Noise – Instruments Of Darkness (All Of Us Are One People) (The Prodigy Mix) (1991).mp4",
+      "new_path": "The Art Of Noise - Instruments Of Darkness (All Of Us Are One People) (The Prodigy Mix) (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Bluetones- Bluetonic (1995).mp4",
+      "new_path": "The Bluetones - Bluetonic (1995).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Bluetones- Marblehead Johnson (1996).mp4",
+      "new_path": "The Bluetones - Marblehead Johnson (1996).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Escape Club -  I'll Be There (1991).mp4",
+      "new_path": "The Escape Club - I'll Be There (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Human League -Tell Me When (1994).mp4",
+      "new_path": "The Human League - Tell Me When (1994).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Kelly Family – Jingle Bells (1981).mp4",
+      "new_path": "The Kelly Family - Jingle Bells (1981).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Kinks - State Of Confusion - 1983 (1983).mp4",
+      "new_path": "The Kinks - State Of Confusion (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Pharcyde - Otha Fish - 1993 (1993).mp4",
+      "new_path": "The Pharcyde - Otha Fish (1993).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Reynolds Girls - I'd Rather Jack (1988)).mp4",
+      "new_path": "The Reynolds Girls - I'd Rather Jack (1988).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The S.O.S. Band - The Finest (1986)).mp4",
+      "new_path": "The S.O.S. Band - The Finest (1986).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Twins - Not The Loving Kind  (1983).mp4",
+      "new_path": "The Twins - Not The Loving Kind (1983).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "The Underdog Project - Summer Jam (DJ F.R.A.N.K.'s Summermix Short)(2000).mp4",
+      "new_path": "The Underdog Project - Summer Jam (DJ F.R.A.N.K.'s Summermix Short) (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Thunder  River Of Pain (1995).mp4",
+      "new_path": "Thunder - River Of Pain (1995).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Thunder – Dirty Love (1990).mp4",
+      "new_path": "Thunder - Dirty Love (Additional Copy) (1990).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Tina Turner I Don't Wanna Fight (1993).mp4",
+      "new_path": "Tina Turner - I Don't Wanna Fight (1993).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Tom Jones feat. Mousse T  - Sexbomb (2000).mp4",
+      "new_path": "Tom Jones feat. Mousse T - Sexbomb (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Toni Braxton - Another Sad Love Song  (Remix) (1993).mp4",
+      "new_path": "Toni Braxton - Another Sad Love Song (Remix) (1993).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Toto Coelo - Dracula's Tango (Sucker For Your Love)  (1982).mp4",
+      "new_path": "Toto Coelo - Dracula's Tango (Sucker For Your Love) (1982).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Unearth - Black Hearts Now Reign (20049.mp4",
+      "new_path": "Unearth - Black Hearts Now Reign (2004).mp4",
+      "reason": "Year supplied by the library owner on 2026-10-01."
+    },
+    {
+      "old_path": "Urge Overkill - Ticket To L.A. ‌(1991).mp4",
+      "new_path": "Urge Overkill - Ticket To L.A. (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "UTE LEMPER ~ The Case Continues (2000).mp4",
+      "new_path": "UTE LEMPER - The Case Continues (2000).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Valerie Dore Get Closer (1984).mp4",
+      "new_path": "Valerie Dore - Get Closer (1984).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Van Halen - Right Now (1991.mp4",
+      "new_path": "Van Halen - Right Now (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Vanessa Williams  - Darlin' I (1989).mp4",
+      "new_path": "Vanessa Williams - Darlin' I (1989).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "wang chung fire in the twilight (1985).mp4",
+      "new_path": "Wang Chung - Fire in the Twilight (1985).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Ward Brothers - Cross That Bridge (Kitchen Sink Mix)(1986).mp4",
+      "new_path": "Ward Brothers - Cross That Bridge (Kitchen Sink Mix) (1986).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Warrior Fighting for the Earth -- MCA Records (1985).mp4",
+      "new_path": "Warrior - Fighting for the Earth (1985).mp4",
+      "reason": "Reviewed artist/title repair; preserve existing year."
+    },
+    {
+      "old_path": "Was (Not Was) -  Papa Was A Rolling Stone (1990).webm",
+      "new_path": "Was (Not Was) - Papa Was A Rolling Stone (1990).webm",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Was (Not Was) - Spy In The House Of Love(1987).mp4",
+      "new_path": "Was (Not Was) - Spy In The House Of Love (1987).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Waveform 7 ft. Daddy D - Southside  (1997).mp4",
+      "new_path": "Waveform 7 ft. Daddy D - Southside (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Womack & Womack - Celebrate The World (1988).mp4.mp4",
+      "new_path": "Womack & Womack - Celebrate The World (1988).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Young MC -That's The Way Love Goes (1991).mp4",
+      "new_path": "Young MC - That's The Way Love Goes (1991).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    },
+    {
+      "old_path": "Zhané - Request Line(1997).mp4",
+      "new_path": "Zhané - Request Line (1997).mp4",
+      "reason": "Standardize separators, whitespace, year punctuation or technical suffix; preserve existing year."
+    }
+  ],
+  "manual": [],
+  "hold": [
+    {
+      "old_path": "Matt Cox - Washed It All Away.mp4",
+      "reason": "Unknown year; owner requested moving it aside for now on 2026-10-01."
+    }
+  ]
+}
