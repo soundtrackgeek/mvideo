@@ -9,6 +9,10 @@
 - Revisit negative cache entries from the manual-only lookup and preserve biographies when the artwork provider fails.
 - Keep ambiguous or missing matches on the video fallback, with bounded requests, caching and manual identity overrides.
 
+### Changed
+
+- Deploy the Windows artwork correction and publish tvOS 0.4.1 (3) to the existing mvideo testers TestFlight group.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

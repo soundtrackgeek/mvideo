@@ -4,7 +4,7 @@ Approved designs: `cbc4a5a`, all five images inspected 2026-10-01. Design approv
 
 ## Delivery status (2026-10-01)
 
-Milestones 1–3 are implemented and integrated in 0.3.0. Windows boot-task configuration, all 15,559 probes, seven-format HTTPS playback, live artwork, native simulator tests, distribution signing/upload and TestFlight invitation are verified. Physical Apple TV playback and an actual Windows reboot remain unverified; see [evidence](VERIFICATION.md). The following starting conditions and milestone descriptions preserve the original implementation plan.
+Milestones 1–3 were implemented and integrated in 0.3.0. Version 0.4.1 adds automatic artist photography matching after the 0.4.0 UI improvements and is available to the existing TestFlight group. Windows boot-task configuration, all 15,559 probes, seven-format HTTPS playback, live artwork, native simulator tests, distribution signing/upload and TestFlight invitation are verified. The owner confirmed basic physical Apple TV playback and has installed 0.4.0; the latest artwork correction and an actual Windows reboot remain unverified on the physical devices. See [evidence](VERIFICATION.md). The following starting conditions and milestone descriptions preserve the original implementation plan.
 
 ## Verified starting conditions (2026-10-01)
 

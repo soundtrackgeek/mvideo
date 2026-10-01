@@ -56,11 +56,11 @@ Home chooses a random available background from matched library artists once per
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.
 
-Version **0.4.0 (2)** uploaded successfully, completed Apple processing, and is **Testing** in the internal **mvideo testers** group. App Store Connect visibly shows one tester and two builds, including the earlier 0.3.0 (1). Release confirmation is saved locally in ignored `output/testflight-0.4.0.jpeg`.
+Version **0.4.1 (3)** uploaded successfully, completed Apple processing, and is **Testing** in the internal **mvideo testers** group. App Store Connect visibly shows one tester and three builds, including the earlier 0.4.0 (2) and 0.3.0 (1). Release confirmation is saved locally in ignored `output/testflight-0.4.1.jpeg`.
 
-The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. The invitation has been accepted: App Store Connect reports **Installed 0.3.0 (1)** on **Apple TV 4K / tvOS 26.6**. The owner confirmed installation, pairing and working playback, and supplied photos of its browsing and player UI. The 0.4.0 UI changes still need verification on that physical device.
+The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. The invitation has been accepted: App Store Connect reports **Installed 0.4.0 (2)** on **Apple TV 4K / tvOS 26.6**. The owner confirmed installation, pairing and working playback, supplied photos of its browsing and player UI, and reported missing artist photography after updating. The 0.4.1 automatic artwork correction still needs verification on that physical device.
 
-Latest local distribution artifacts: ignored `output/MVideo-0.4.0.xcarchive` and `output/export-0.4.0/MVideo.ipa`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
+Latest local distribution artifacts: ignored `output/MVideo-0.4.1.xcarchive` and `output/export-0.4.1/MVideo.ipa`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
 
 ## Reference and provider decisions
 
@@ -83,12 +83,12 @@ Sources checked 2026-10-01:
 | Boot service configuration and fresh task launch | Verified Local Service, no login; actual reboot untested |
 | Private HTTPS and pairing | Verified Windows route and native Keychain |
 | Representative seven-format playback and seeking | Passed through Windows HTTPS; originals unchanged |
-| Live Last.fm/fanart.tv and random home image | Verified for three approved artist identities |
+| Live Last.fm/fanart.tv and random home image | Verified for three manual identities; automatic fanart.tv matching and image bytes verified for five more artists |
 | tvOS simulator build/navigation/playback | Eleven distinct tests passed across full and targeted runs, zero skipped |
-| Physical Apple TV | Owner-confirmed installation, pairing and basic playback on 0.3.0; App Store Connect reports Apple TV 4K / tvOS 26.6; generation and 0.4.0 UI still need device verification |
+| Physical Apple TV | Owner-confirmed pairing and basic playback; 0.4.0 installed on Apple TV 4K / tvOS 26.6; generation and 0.4.1 artwork correction still need device verification |
 | Signing/archive/export/upload | Passed; dedicated identity |
 | Apple processing | Complete |
-| TestFlight build/group | 0.4.0 (2) Testing; one tester/two builds |
-| Requested invitation | jtillnes2@yahoo.com accepted; 0.3.0 installation confirmed by App Store Connect |
+| TestFlight build/group | 0.4.1 (3) Testing; one tester/three builds |
+| Requested invitation | jtillnes2@yahoo.com accepted; 0.4.0 installation confirmed by App Store Connect |
 
 Remaining physical-device checks: verify the updated image tiles and photo navigation, representative audio/aspect/seek, continuous transitions and return focus. A future reboot should also confirm the configured boot trigger in practice.
