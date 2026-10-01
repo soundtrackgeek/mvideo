@@ -16,6 +16,7 @@
 
 - Display Artist - Track (Year) in native playback controls, with graceful handling of missing artist/year metadata.
 - Bump the Windows service and tvOS app to 0.4.0, TestFlight build 2.
+- Deploy the Windows update and publish tvOS 0.4.0 (2) to the existing mvideo testers TestFlight group.
 
 ## [0.3.0] - 2026-10-01
 

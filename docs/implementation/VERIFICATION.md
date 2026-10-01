@@ -45,16 +45,18 @@ Home chooses a random available background from verified library artists once pe
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.
 
-Version **0.3.0 (1)** uploaded successfully, completed Apple processing, and is **Testing** in the internal **mvideo testers** group. The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. App Store Connect visibly shows **Invited — Oct 1, 2026**, with one tester and one build. The owner subsequently confirmed installation, pairing and working playback on the physical Apple TV, and supplied photos of its browsing and player UI.
+Version **0.4.0 (2)** uploaded successfully, completed Apple processing, and is **Testing** in the internal **mvideo testers** group. App Store Connect visibly shows one tester and two builds, including the earlier 0.3.0 (1). Release confirmation is saved locally in ignored `output/testflight-0.4.0.jpeg`.
 
-Local distribution artifacts: ignored `output/MVideo-0.3.0.xcarchive` and `output/export-0.3.0/MVideo.ipa`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
+The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. The invitation has been accepted: App Store Connect reports **Installed 0.3.0 (1)** on **Apple TV 4K / tvOS 26.6**. The owner confirmed installation, pairing and working playback, and supplied photos of its browsing and player UI. The 0.4.0 UI changes still need verification on that physical device.
+
+Latest local distribution artifacts: ignored `output/MVideo-0.4.0.xcarchive` and `output/export-0.4.0/MVideo.ipa`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
 
 ## Reference and provider decisions
 
 Tonehavn runs its server on loopback port 3210 behind HTTPS. Its iOS client validates an origin-only HTTPS URL, uses native URLSession/AVPlayer, and keeps account secrets out of UserDefaults. mvideo follows this separation with its own loopback service, explicit HTTPS origin and Keychain namespace. No Tonehavn source/configuration was modified.
 
 Sources checked 2026-10-01:
-- [Apple TV 4K first-generation specifications](https://support.apple.com/en-tm/111929). Owner believes this is the target model; exact model and tvOS version remain unverified; basic device playback is owner-confirmed.
+- [Apple TV 4K first-generation specifications](https://support.apple.com/en-tm/111929). Owner believes this is the target model; generation remains unverified; App Store Connect reports Apple TV 4K on tvOS 26.6, and basic device playback is owner-confirmed.
 - [Apple HLS authoring specification](https://developer.apple.com/documentation/http-live-streaming/hls-authoring-specification-for-apple-devices/).
 - [FFmpeg format documentation](https://ffmpeg.org/ffmpeg-formats.html). Completed MP4 VOD selected initially for reliable seek coverage; HLS remains a future optimization.
 - [Last.fm artist.getInfo](https://www.last.fm/api/show/artist.getInfo): public API key required, user authentication/shared secret unnecessary, MusicBrainz UUID supported, error 29 is rate limiting.
@@ -70,11 +72,11 @@ Sources checked 2026-10-01:
 | Private HTTPS and pairing | Verified Windows route and native Keychain |
 | Representative seven-format playback and seeking | Passed through Windows HTTPS; originals unchanged |
 | Live Last.fm/fanart.tv and random home image | Verified for three approved artist identities |
-| tvOS simulator build/navigation/playback | Eight tests passed, zero skipped |
-| Physical Apple TV | Owner-confirmed installation, pairing and basic playback on 0.3.0; exact model/tvOS and 0.4.0 UI still need device verification |
+| tvOS simulator build/navigation/playback | Ten distinct tests passed across full and targeted runs, zero skipped |
+| Physical Apple TV | Owner-confirmed installation, pairing and basic playback on 0.3.0; App Store Connect reports Apple TV 4K / tvOS 26.6; generation and 0.4.0 UI still need device verification |
 | Signing/archive/export/upload | Passed; dedicated identity |
 | Apple processing | Complete |
-| TestFlight build/group | 0.3.0 (1) Testing; one tester/one build |
-| Requested invitation | jtillnes2@yahoo.com shown Invited |
+| TestFlight build/group | 0.4.0 (2) Testing; one tester/two builds |
+| Requested invitation | jtillnes2@yahoo.com accepted; 0.3.0 installation confirmed by App Store Connect |
 
 Remaining physical-device checks: verify the updated image tiles and photo navigation, representative audio/aspect/seek, continuous transitions and return focus. A future reboot should also confirm the configured boot trigger in practice.

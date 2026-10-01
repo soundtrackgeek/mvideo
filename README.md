@@ -6,7 +6,7 @@ The Windows service and native tvOS app are implemented. The app supports artist
 
 Artist tiles use cached, verified fanart.tv photography when available, otherwise a still from that artist's videos. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
 
-The real Windows catalog contains **15,559 videos**. Version **0.3.0 (1)** is available to the invited tester in its dedicated TestFlight group. The requested invitation was sent to `jtillnes2@yahoo.com`. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
+The real Windows catalog contains **15,559 videos**. Version **0.4.0 (2)** is available in the dedicated **mvideo testers** TestFlight group. The requested invitation to `jtillnes2@yahoo.com` was accepted; update mvideo through TestFlight on Apple TV. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
 
 ## Library service
 
@@ -89,7 +89,7 @@ A queue snapshots all matching IDs, not just the visible page. Shuffle is a perm
 
 The dedicated app is **mvideo - music videos**, bundle `com.soundtrackgeek.mvideo`, Apple team `3L5769JKCM`, minimum tvOS 18. Its session lives in Keychain service `com.soundtrackgeek.mvideo`; provider keys never reach the app. The shorter App Store name was already taken. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
 
-Install mvideo through its TestFlight invitation, open Tailscale on Apple TV and connect to your tailnet, then enter the HTTPS origin above and a fresh eight-digit code from the Windows pairing command. Use Connection in the navigation bar to disconnect or pair again. The owner has installed, paired and played videos on the physical Apple TV. It is believed to be a first-generation Apple TV 4K; the exact model and tvOS version remain unverified.
+Install mvideo through its TestFlight invitation, open Tailscale on Apple TV and connect to your tailnet, then enter the HTTPS origin above and a fresh eight-digit code from the Windows pairing command. Use Connection in the navigation bar to disconnect or pair again. The owner has installed, paired and played videos on the physical Apple TV. App Store Connect reports Apple TV 4K on tvOS 26.6; its generation is believed to be first-generation but remains unverified.
 
 Open `apps/tvos/MVideo.xcodeproj` in Xcode. `apps/tvos/project.yml` regenerates the project with XcodeGen. Tests include an optional live-library suite: pair the simulator first, then run the MVideo scheme tests; otherwise live tests explicitly skip. Use normal simulator signing so Keychain works.
 
