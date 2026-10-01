@@ -22,6 +22,9 @@ final class PlaybackIntegrationTests: XCTestCase {
         XCTAssertFalse(model.preparing)
         let item = try XCTUnwrap(model.player.currentItem)
         XCTAssertEqual(item.status, .readyToPlay)
+        let titleMetadata = try XCTUnwrap(item.externalMetadata.first(where: { $0.identifier == .commonIdentifierTitle }))
+        let playbackTitle = try await titleMetadata.load(.stringValue)
+        XCTAssertEqual(playbackTitle, model.current?.playbackTitle)
         let audio = try await item.asset.loadTracks(withMediaType: .audio)
         XCTAssertFalse(audio.isEmpty)
         let duration = try await item.asset.load(.duration).seconds

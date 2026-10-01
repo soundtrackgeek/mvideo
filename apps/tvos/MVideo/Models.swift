@@ -9,6 +9,10 @@ struct Video: Codable, Identifiable, Hashable {
     let warnings: [String]
     let probeError: String?
     var subtitle: String { [artist ?? "Artist unidentified", year.map(String.init)].compactMap { $0 }.joined(separator: " · ") }
+    var playbackTitle: String {
+        let track = [artist.flatMap { $0.isEmpty ? nil : $0 }, title].compactMap { $0 }.joined(separator: " - ")
+        return track + (year.map { " (\($0))" } ?? "")
+    }
 }
 struct VideoPage: Decodable {
     let items: [Video]
@@ -19,11 +23,17 @@ struct VideoPage: Decodable {
 struct Facet: Decodable, Identifiable, Hashable {
     let name: String
     let count: Int
+    let image: String?
+    let thumbnail: String?
+    let imageAttribution: String?
     var id: String { name }
-    enum CodingKeys: String, CodingKey { case name, count }
+    enum CodingKeys: String, CodingKey { case name, count, image, thumbnail, imageAttribution }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         count = try c.decode(Int.self, forKey: .count)
+        image = try c.decodeIfPresent(String.self, forKey: .image)
+        thumbnail = try c.decodeIfPresent(String.self, forKey: .thumbnail)
+        imageAttribution = try c.decodeIfPresent(String.self, forKey: .imageAttribution)
         if let string = try? c.decode(String.self, forKey: .name) { name = string }
         else { name = String(try c.decode(Int.self, forKey: .name)) }
     }

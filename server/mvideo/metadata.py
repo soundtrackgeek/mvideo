@@ -105,6 +105,18 @@ class Metadata:
                 db.execute('INSERT OR REPLACE INTO metadata VALUES(?,?,?)',(name,json.dumps(data),int(time.time())+ttl))
             return data
 
+    def cached_artwork(self, names):
+        # Browsing thousands of artists must not trigger a provider crawl. Only use
+        # artwork already associated with an owner-verified identity; video stills
+        # cover every other artist without guessing their MusicBrainz identity.
+        if not names: return set()
+        with self.db.connect() as db:
+            rows=db.execute(f'''SELECT m.artist, m.data, i.mbid FROM metadata m
+                JOIN identities i ON i.artist=m.artist COLLATE NOCASE
+                WHERE m.artist COLLATE NOCASE IN ({','.join('?' for _ in names)})''', names).fetchall()
+        return {row['artist'].casefold() for row in rows
+                if (data := json.loads(row['data'])).get('images') and data.get('mbid') == row['mbid']}
+
     def featured(self):
         # Equal artist weighting, limited to verified identities that still have available videos.
         # Never crawl the entire library during an app launch.

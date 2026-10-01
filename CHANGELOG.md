@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] - 2026-10-01
+
+### Added
+
+- Image-backed artist, year and decade tiles with readable gradient overlays, scoped video stills and cached verified fanart.tv artist artwork.
+- Remote-selectable artist photos with a full-screen viewer and return focus.
+
+### Fixed
+
+- Reserve video thumbnail layout bounds and separate the Artist photos section so it no longer overlaps the last video row.
+- Make the artist photo row reachable with the Apple TV remote.
+
+### Changed
+
+- Display Artist - Track (Year) in native playback controls, with graceful handling of missing artist/year metadata.
+- Bump the Windows service and tvOS app to 0.4.0, TestFlight build 2.
+
 ## [0.3.0] - 2026-10-01
 
 ### Added

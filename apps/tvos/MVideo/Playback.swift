@@ -54,7 +54,7 @@ struct QueueCursor: Equatable {
                 guard queue.index == index, let path = prepared?.url else { throw ServiceError.message("Preparation took too long. Retry or skip this video.") }
                 let item = AVPlayerItem(url: try api.connection.url(path))
                 var metadata: [AVMetadataItem] = []
-                for (identifier, value) in [(AVMetadataIdentifier.commonIdentifierTitle, current?.title ?? ""), (.commonIdentifierArtist, current?.artist ?? "")] {
+                for (identifier, value) in [(AVMetadataIdentifier.commonIdentifierTitle, current?.playbackTitle ?? ""), (.commonIdentifierArtist, current?.artist ?? "")] {
                     let field = AVMutableMetadataItem(); field.identifier = identifier; field.value = value as NSString; field.extendedLanguageTag = "und"; metadata.append(field)
                 }
                 item.externalMetadata = metadata
@@ -121,7 +121,7 @@ struct PlaybackScreen: View {
             if model.preparing || model.error != nil || model.finished {
                 Color.black.opacity(0.85).ignoresSafeArea()
                 VStack(spacing: 24) {
-                    Text(model.finished ? "That was your selection." : model.current?.title ?? model.title).font(.title.bold())
+                    Text(model.finished ? "That was your selection." : model.current?.playbackTitle ?? model.title).font(.title.bold())
                     if model.preparing { ProgressView(model.message) }
                     if let error = model.error { Text(error).multilineTextAlignment(.center).frame(maxWidth: 950) }
                     if model.finished {

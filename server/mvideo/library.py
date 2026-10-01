@@ -197,5 +197,6 @@ class Library:
         where += " AND " + ("artist IS NOT NULL" if kind == "artists" else "year IS NOT NULL")
         with self.database.connect() as db:
             total = db.execute(f"SELECT count(DISTINCT {expression}) FROM videos WHERE {where}", params).fetchone()[0]
-            rows = db.execute(f"SELECT {expression} AS name, count(*) AS count FROM videos WHERE {where} GROUP BY {expression} ORDER BY name COLLATE NOCASE LIMIT ? OFFSET ?", [*params,limit,offset]).fetchall()
+            # Stable artwork from this exact scope, preferring a source with a successful probe.
+            rows = db.execute(f"SELECT {expression} AS name, count(*) AS count, COALESCE(MIN(CASE WHEN probe_error IS NULL THEN id END), MIN(id)) AS representative_id FROM videos WHERE {where} GROUP BY {expression} ORDER BY name COLLATE NOCASE LIMIT ? OFFSET ?", [*params,limit,offset]).fetchall()
         return {"items": [dict(r) for r in rows], "total": total, "next_offset": offset+limit if offset+limit<total else None}

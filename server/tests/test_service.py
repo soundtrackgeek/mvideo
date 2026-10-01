@@ -25,6 +25,45 @@ def login(app,client):
     return {'Authorization':'Bearer '+response.json()['token']}
 
 
+def test_facet_artwork_is_scoped_cached_and_authorized(service):
+    app,client,root=service
+    for name in ('Band - Early (1962)', 'BAND - Later (1997)', 'Other - Song (1985)', 'Other - Unknown'):
+        (root/(name+'.mp4')).write_bytes(b'x')
+    app.state.library.scan()
+    headers=login(app,client)
+    def no_provider(*args, **kwargs):
+        pytest.fail('Facet browsing must not call metadata providers')
+    app.state.metadata.artist=no_provider
+    with app.state.database.connect() as db:
+        db.execute('INSERT INTO identities VALUES(?,?)',('band','verified-id'))
+        db.execute('INSERT INTO metadata VALUES(?,?,?)',('band',json.dumps({'images':['https://assets.fanart.tv/band.jpg'],'mbid':'verified-id'}),9999999999))
+        # Cached but unverified provider data must never win over a local still.
+        db.execute('INSERT INTO metadata VALUES(?,?,?)',('Other',json.dumps({'images':['https://assets.fanart.tv/wrong.jpg']}),9999999999))
+    assert client.get('/api/facets/artists').status_code==401
+    images=[]
+    for kind in ('artists','years','decades'):
+        response=client.get('/api/facets/'+kind,headers=headers).json()
+        for item in response['items']:
+            assert 'representative_id' not in item
+            identity=item['thumbnail'].split('/')[2]
+            source=app.state.library.get(identity)
+            if kind=='artists':
+                assert source['artist'].casefold()==item['name'].casefold()
+                if item['name'].casefold()=='band':
+                    assert item['image'].startswith('/artwork/')
+                    assert item['image_attribution']=='fanart.tv'
+                else: assert item['image']==item['thumbnail']
+            elif kind=='years': assert source['year']==item['name']
+            else: assert source['year']//10*10==item['name']
+            images.extend([item['image'],item['thumbnail']])
+        paged=client.get('/api/facets/'+kind+'?limit=1&offset=1',headers=headers).json()
+        assert paged['items'][0]['name']==response['items'][1]['name']
+    filtered=client.get('/api/facets/artists?q=Later',headers=headers).json()['items'][0]
+    assert app.state.library.get(filtered['thumbnail'].split('/')[2])['year']==1997
+    client.delete('/api/session',headers=headers)
+    for image in images: assert client.get(image).status_code==401
+
+
 def test_featured_artwork_is_verified_library_only_and_scoped(service):
     app,client,root=service
     (root/'Library Artist - Song (2000).mp4').write_bytes(b'x')
@@ -74,7 +113,7 @@ def test_scan_search_incremental_and_offline(service):
     assert lib.videos(q='1985',field='year')['total']==1
     assert lib.videos(artist='a-ha',decade=1990)['total']==0
     assert lib.videos(q='" OR *')['total']==0
-    assert lib.facets('decades')['items']==[{'name':1980,'count':1},{'name':1990,'count':1}]
+    assert [(item['name'],item['count']) for item in lib.facets('decades')['items']]==[(1980,1),(1990,1)]
     (root/'A-HA - Another Song (2000).mp4').write_bytes(b'x')
     lib.scan()
     assert lib.videos(artist='A-Ha')['total']==2

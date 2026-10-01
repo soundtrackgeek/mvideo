@@ -39,5 +39,14 @@ final class CoreTests: XCTestCase {
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         let video = try decoder.decode(Video.self, from: data)
         XCTAssertEqual(video.subtitle, "a-ha · 1985")
+        XCTAssertEqual(video.playbackTitle, "a-ha - Take On Me (1985)")
+    }
+    func testPlaybackTitleWithIncompleteMetadata() throws {
+        let unknown = Video(id: "a", artist: nil, title: "Unidentified song", year: nil, thumbnail: nil, warnings: [], probeError: nil)
+        XCTAssertEqual(unknown.playbackTitle, "Unidentified song")
+        let noYear = Video(id: "b", artist: "Prince", title: "1999", year: nil, thumbnail: nil, warnings: [], probeError: nil)
+        XCTAssertEqual(noYear.playbackTitle, "Prince - 1999")
+        let noArtist = Video(id: "c", artist: "", title: "Song", year: 1985, thumbnail: nil, warnings: [], probeError: nil)
+        XCTAssertEqual(noArtist.playbackTitle, "Song (1985)")
     }
 }

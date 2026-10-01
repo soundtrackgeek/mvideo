@@ -43,7 +43,7 @@ def create_app(settings=None):
     async def lifespan(app):
         yield
         playback.close()
-    app=FastAPI(title='mvideo',version='0.3.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.4.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
 
@@ -65,7 +65,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.3.0'}
+    def health(): return {'service':'mvideo','version':'0.4.0'}
 
     @app.post('/api/pair')
     def pair(body:PairRequest):
@@ -105,7 +105,16 @@ def create_app(settings=None):
 
     @app.get('/api/facets/{kind}')
     def facets(kind:Literal['artists','years','decades'],q:str=Query('',max_length=256),limit:int=Query(60,ge=1,le=100),offset:int=Query(0,ge=0),sid=Depends(session)):
-        return library.facets(kind,q,limit,offset)
+        result=library.facets(kind,q,limit,offset)
+        artists=metadata.cached_artwork([item['name'] for item in result['items']]) if kind=='artists' else set()
+        for item in result['items']:
+            identity=item.pop('representative_id')
+            item['thumbnail']='/image/'+identity+'/'+auth.ticket(sid,'image:'+identity)
+            item['image']=item['thumbnail']
+            if kind=='artists' and item['name'].casefold() in artists:
+                item['image']=artwork_url(item['name'],0,sid)
+                item['image_attribution']='fanart.tv'
+        return result
 
     def artwork_url(name,index,sid):
         import hashlib

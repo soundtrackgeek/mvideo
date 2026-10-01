@@ -34,6 +34,9 @@ struct LibraryShell: View {
         .task {
             guard !requestedArtwork else { return }
             requestedArtwork = true
+            #if DEBUG && targetEnvironment(simulator)
+            if let artist = ProcessInfo.processInfo.environment["MVIDEO_TEST_ARTIST"] { path = [.artist(artist)] }
+            #endif
             // Choose once for this app session, preserving artwork when returning from playback or another tab.
             let response: FeaturedResponse? = try? await api.request("/api/featured")
             featured = response?.item
@@ -112,6 +115,7 @@ struct BrowseScreen: View {
     @State private var player: PlayerModel?
     @State private var showingPlayer = false
     @State private var showingBiography = false
+    @State private var gallery: ArtistPhotoSelection?
     @State private var launching = false
     @State private var playbackError: String?
     @State private var returnFocus: String?
@@ -151,15 +155,7 @@ struct BrowseScreen: View {
                             .buttonStyle(PillStyle()).disabled(model.loading).accessibilityIdentifier("load-more")
                     }
                     if case .artist = page, let metadata = model.metadata, !metadata.images.isEmpty {
-                        Text("Artist photos").font(.title2.bold())
-                        ScrollView(.horizontal) {
-                            HStack(spacing: 24) {
-                                ForEach(metadata.images, id: \.self) { path in
-                                    Artwork(url: try? api.connection.url(path)).frame(width: 460, height: 270).clipShape(RoundedRectangle(cornerRadius: 12))
-                                }
-                            }
-                        }
-                        Text(metadata.imageAttribution ?? "Artist images · fanart.tv").foregroundStyle(Theme.secondary)
+                        artistPhotos(metadata)
                     }
                 }.padding(.horizontal, 70).padding(.bottom, 90)
             }
@@ -189,6 +185,11 @@ struct BrowseScreen: View {
             if let player { PlaybackScreen(model: player) }
         }
         .sheet(isPresented: $showingBiography) { biography }
+        .fullScreenCover(item: $gallery, onDismiss: { restoreCounter += 1 }) { selection in
+            if let metadata = model.metadata {
+                ArtistPhotoViewer(api: api, artist: page.title, metadata: metadata, initialIndex: selection.id)
+            }
+        }
     }
     private var hero: some View {
         ZStack(alignment: .leading) {
@@ -288,8 +289,11 @@ struct BrowseScreen: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Button { launch(shuffle: false, start: video.id, origin: video.id) } label: {
                             VStack(alignment: .leading, spacing: 12) {
-                                Artwork(url: video.thumbnail.flatMap { try? api.connection.url($0) })
-                                    .aspectRatio(16 / 9, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 10))
+                                // Reserve the thumbnail's bounds before loading. Source aspect ratios
+                                // must not expand a lazy grid row into the following section.
+                                Color.clear.aspectRatio(16 / 9, contentMode: .fit)
+                                    .overlay { Artwork(url: video.thumbnail.flatMap { try? api.connection.url($0) }) }
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
                                 Text(video.title).font(.system(size: 25, weight: .semibold)).lineLimit(1)
                                 Text(video.subtitle).font(.system(size: 21)).foregroundStyle(Theme.secondary).lineLimit(1)
                             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -306,14 +310,33 @@ struct BrowseScreen: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 24), count: 3), spacing: 26) {
             ForEach(model.facets) { facet in
                 NavigationLink(value: facetPage(facet)) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        Text(page == .decades ? "\(facet.name)s" : facet.name).font(.system(size: 38, weight: .bold)).lineLimit(2)
-                        Text("\(facet.count.formatted()) videos").foregroundStyle(Theme.secondary).font(.system(size: 24))
-                    }.frame(maxWidth: .infinity, minHeight: 140, alignment: .leading).padding(25)
-                        .background(LinearGradient(colors: [Color.white.opacity(0.09), Color.white.opacity(0.025)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 12))
-                }.buttonStyle(CardStyle())
+                    FacetCard(api: api, facet: facet, title: page == .decades ? "\(facet.name)s" : facet.name)
+                }.buttonStyle(CardStyle()).accessibilityIdentifier("facet-" + facet.name)
             }
         }.focusSection()
+    }
+    private func artistPhotos(_ metadata: ArtistMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Artist photos").font(.title2.bold()).accessibilityIdentifier("artist-photos-heading")
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 24) {
+                    ForEach(Array(metadata.images.enumerated()), id: \.element) { index, path in
+                        Button {
+                            returnFocus = "photo-\(index)"; returnOffset = scrollOffset
+                            gallery = ArtistPhotoSelection(id: index)
+                        } label: {
+                            Artwork(url: try? api.connection.url(path))
+                                .frame(width: 460, height: 260).clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(CardStyle())
+                        .focused($focus, equals: "photo-\(index)")
+                        .accessibilityLabel("\(page.title), photo \(index + 1) of \(metadata.images.count)")
+                        .accessibilityIdentifier("artist-photo-\(index)")
+                    }
+                }.padding(12)
+            }.scrollClipDisabled().focusSection()
+            Text(metadata.imageAttribution ?? "Artist images · fanart.tv").font(.system(size: 21)).foregroundStyle(Theme.secondary)
+        }.padding(.top, 28)
     }
     private func facetPage(_ facet: Facet) -> Page {
         switch page { case .years: .year(Int(facet.name) ?? 0); case .decades: .decade(Int(facet.name) ?? 0); default: .artist(facet.name) }
