@@ -57,10 +57,23 @@ class Playback:
         self.thumbnail_lock = threading.Lock()
 
     def cache_key(self, row):
-        return f"{row['id']}-{row['mtime']}-{row['size']}"
+        return f"v2-{row['id']}-{row['mtime']}-{row['size']}"
 
     def prepare(self, identity):
         row = self.library.get(identity)
+        if row['probe_error']:
+            key = 'probe:' + identity
+            with self.lock:
+                job = self.jobs.get(key)
+                if job and job.done():
+                    del self.jobs[key]
+                    if job.exception():
+                        return {'state':'error','mode':'inspection','error':'Unable to inspect this file. Retry or skip it.'}
+                if not job:
+                    if sum(not j.done() for j in self.jobs.values()) >= 3:
+                        return {'state':'busy','mode':'inspection'}
+                    self.jobs[key] = self.pool.submit(self.inspect, identity)
+            return {'state':'preparing','mode':'inspection'}
         probe = json.loads(row['probe'] or '{}')
         mode = playback_plan(probe)
         if mode.startswith('unsupported'):
@@ -100,7 +113,7 @@ class Playback:
         partial = target.with_suffix('.partial.mp4')
         args = [self.settings.ffmpeg,'-nostdin','-v','error','-y','-i',str(source),'-map','0:v:0','-map','0:a:0?','-sn','-dn','-map_metadata','-1']
         if mode=='transcode':
-            args += ['-vf',"bwdif=mode=send_frame:parity=auto:deint=interlaced,scale=w='min(1920,iw*sar)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,fps=30",
+            args += ['-vf',"bwdif=mode=send_frame:parity=auto:deint=interlaced,scale=w='trunc(min(1920,min(iw*sar,1080*dar))/2)*2':h='trunc(ow/dar/2)*2',setsar=1,fps=30",
                      '-c:v','libx264','-preset','fast','-crf','20','-profile:v','high','-level:v','4.1','-pix_fmt','yuv420p','-maxrate','8M','-bufsize','16M']
         else:
             args += ['-c:v','copy']
@@ -125,6 +138,11 @@ class Playback:
             raise FileNotFoundError('Prepared media expired; retry playback')
         return path
 
+    def inspect(self, identity):
+        probe = self.library.probe(self.library.source(identity))
+        with self.library.database.connect() as db:
+            db.execute('UPDATE videos SET probe=?,probe_error=NULL WHERE id=?', (json.dumps(probe), identity))
+
     def thumbnail(self, identity):
         row = self.library.get(identity)
         target = self.settings.state/'thumbnails'/f'{self.cache_key(row)}.jpg'
@@ -132,8 +150,10 @@ class Playback:
             if not target.exists():
                 source = self.library.source(identity)
                 temp = target.with_suffix('.partial.jpg')
+                duration = float(json.loads(row['probe'] or '{}').get('format',{}).get('duration') or 10)
+                position = str(min(10, max(0, duration * 0.1)))
                 try:
-                    r = subprocess.run([self.settings.ffmpeg,'-nostdin','-v','error','-y','-ss','1','-i',str(source),'-frames:v','1','-vf','scale=640:-2','-q:v','4',str(temp)],capture_output=True,timeout=30)
+                    r = subprocess.run([self.settings.ffmpeg,'-nostdin','-v','error','-y','-ss',position,'-i',str(source),'-frames:v','1','-vf',"scale=w=640:h='trunc(640/dar/2)*2',setsar=1",'-q:v','4',str(temp)],capture_output=True,timeout=30)
                     if r.returncode or not temp.exists():
                         raise FileNotFoundError('No thumbnail available')
                     temp.replace(target)

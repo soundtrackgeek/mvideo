@@ -19,3 +19,13 @@ DerivedData/
 xcuserdata/
 *.xcarchive/
 *.ipa
+
+# Windows provisioning and local diagnostics
+providers.encrypted
+provision-public.xml
+pairing-code.txt
+health.json
+library-report.json
+diagnostics.txt
+startup-report.json
+boot-check.*

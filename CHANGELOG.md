@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0] - 2026-10-01
+
+### Added
+
+- Native tvOS app with Home, search, artist/year/decade pages, Keychain pairing and cinematic remote focus.
+- Native AVKit playback with complete-scope queues, shuffle, next-item preparation, seeking, previous/next and up-next controls.
+- Random fanart.tv home photography from verified artists in the real library, with artist credit and thumbnail fallback.
+- Windows boot task running as Local Service without login, restricted ProgramData state, encrypted provider provisioning and automatic incremental scans.
+- Dedicated app identity, branded tvOS assets, simulator tests and App Store distribution archive/export configuration.
+- Real-library verification tooling for source preservation, representative conversions, seeking and aspect ratio.
+
+### Fixed
+
+- Preserve anamorphic display aspect ratio when transcoding and generating thumbnails.
+- Restore the focused video and exact scroll offset after playback without reloading the page.
+- Retain the catalog on partial directory walks and prevent overlapping scans across processes.
+- Probe newly indexed videos asynchronously when playback starts before the scan completes.
+- Combine artist capitalization variants and retain fanart.tv availability independently of biography provider failures.
+
+### Changed
+
+- Deployed private Windows HTTPS on port 8443 and indexed all 15,559 library videos.
+- Published tvOS 0.3.0 (1) to the dedicated internal TestFlight group and sent the requested tester invitation.
+
 ## [0.2.0] - 2026-10-01
 
 ### Added

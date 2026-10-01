@@ -2,6 +2,10 @@
 
 Approved designs: `cbc4a5a`, all five images inspected 2026-10-01. Design approval is recorded in the owner's implementation request. Every displayed item/count must come from the service. Generated reference artwork is never shipped as library content.
 
+## Delivery status (2026-10-01)
+
+Milestones 1–3 are implemented and integrated in 0.3.0. Windows boot-task configuration, all 15,559 probes, seven-format HTTPS playback, live artwork, native simulator tests, distribution signing/upload and TestFlight invitation are verified. Physical Apple TV playback and an actual Windows reboot remain unverified; see [evidence](VERIFICATION.md). The following starting conditions and milestone descriptions preserve the original implementation plan.
+
 ## Verified starting conditions (2026-10-01)
 
 - Repository has no application/service code; clean `master` at `cbc4a5a`.
@@ -34,7 +38,7 @@ AVPlayer/AVKit full-screen playback: scope snapshot queue, selected-video start,
 
 Verification: compile and run on tvOS simulator; deterministic native request/origin/queue tests; remote navigation, keyboard, browse scopes, dismissal/restoration and error recovery. Local fixture service can prove integration, but label generated fixture media explicitly and keep it out of production.
 
-## Milestone 3 — Integration and TestFlight (0.4.0 when verified)
+## Milestone 3 — Integration and TestFlight (included in 0.3.0)
 
 Inspect Windows services/Serve, install isolated service, securely provision server credentials, scan real library, summarize actual codecs and sample each format without altering originals. Validate direct/remux/transcode audio, aspect ratio, seeking and transitions. Run physical-device protocol when Apple TV is available.
 

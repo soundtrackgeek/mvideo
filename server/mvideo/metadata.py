@@ -3,9 +3,11 @@ import html
 import json
 import os
 import re
+import random
 import threading
 import time
 import uuid
+import unicodedata
 from urllib.parse import urlparse
 import httpx
 
@@ -38,8 +40,8 @@ class Metadata:
     def artist(self, name):
         with self.lock:
             with self.db.connect() as db:
-                cached=db.execute('SELECT * FROM metadata WHERE artist=?',(name,)).fetchone()
-                identity=db.execute('SELECT mbid FROM identities WHERE artist=?',(name,)).fetchone()
+                cached=db.execute('SELECT * FROM metadata WHERE artist=? COLLATE NOCASE',(name,)).fetchone()
+                identity=db.execute('SELECT mbid FROM identities WHERE artist=? COLLATE NOCASE',(name,)).fetchone()
             if cached and cached['expires']>time.time():
                 return json.loads(cached['data'])
             data={'state':'unavailable','biography':None,'source_url':None,'images':[], 'mbid':identity[0] if identity else None}
@@ -60,16 +62,37 @@ class Metadata:
                         source=result.get('url','').replace('http://','https://',1)
                         if urlparse(source).hostname not in ('www.last.fm','last.fm'):
                             source='https://www.last.fm/'
+                        # Some Last.fm MBID pages have only a link while the canonical ASCII-name page has the bio.
+                        # Only allow this fallback for an owner-verified identity and an equivalent punctuation-normalized name.
+                        def normalized(value):
+                            return ''.join(c for c in unicodedata.normalize('NFKD',value).casefold() if c.isalnum())
+                        if len(text) < 50 and normalized(result.get('name','')) == normalized(name):
+                            fallback=self.request('https://ws.audioscrobbler.com/2.0/',
+                                {'method':'artist.getinfo','api_key':key,'format':'json','autocorrect':'0','artist':name}).get('artist',{})
+                            if normalized(fallback.get('name','')) == normalized(name) and (not fallback.get('mbid') or fallback['mbid']==identity[0]):
+                                text=html.unescape(re.sub('<[^>]+>','',fallback.get('bio',{}).get('summary',''))).strip()
+                                source=fallback.get('url',source).replace('http://','https://',1)
+                        text=re.sub(r'\s*Read more on Last.fm\.?\s*$', '', text).strip()
+                        if urlparse(source).hostname not in ('www.last.fm','last.fm'):
+                            source='https://www.last.fm/'
                         data.update(state='available',biography=text or None,source_url=source, attribution='Biography · Last.fm')
+            except (httpx.HTTPError,ValueError,KeyError,TypeError):
+                if cached:
+                    data=json.loads(cached['data']); data['stale']=True
+            try:
                 if identity and os.environ.get('FANART_TV'):
                     # v3 remains supported and works with a project key; personal client key is optional.
                     result=self.request('https://webservice.fanart.tv/v3/music/'+str(uuid.UUID(identity[0])),
                         {'api_key':os.environ['FANART_TV']})
-                    images=result.get('artistbackground',[])[:4]+result.get('artistthumb',[])[:1]
+                    backgrounds=result.get('artistbackground',[])[:12]
+                    images=backgrounds+result.get('artistthumb',[])[:1]
+                    data['images']=[]
+                    data['background_count']=0
                     for item in images:
                         url=item.get('url','').replace('http://','https://',1)
                         if urlparse(url).hostname=='assets.fanart.tv' and urlparse(url).scheme=='https':
                             data['images'].append(url)
+                            if item in backgrounds: data['background_count']+=1
                     data['image_attribution']='Artist images · fanart.tv'
                     data['image_source_url']='https://fanart.tv/artist/'+identity[0]+'/'
             except (httpx.HTTPError,ValueError,KeyError,TypeError):
@@ -77,10 +100,31 @@ class Metadata:
                     data=json.loads(cached['data']); data['stale']=True
                 else:
                     data['state']='unavailable'
-            ttl=86400 if data['state']=='available' else 900
+            ttl=86400 if data['state']=='available' or data['images'] else 900
             with self.db.connect() as db:
                 db.execute('INSERT OR REPLACE INTO metadata VALUES(?,?,?)',(name,json.dumps(data),int(time.time())+ttl))
             return data
+
+    def featured(self):
+        # Equal artist weighting, limited to verified identities that still have available videos.
+        # Never crawl the entire library during an app launch.
+        with self.db.connect() as db:
+            rows=db.execute('''SELECT i.artist, m.data FROM identities i
+                LEFT JOIN metadata m ON m.artist=i.artist
+                WHERE EXISTS (SELECT 1 FROM videos v WHERE v.artist=i.artist COLLATE NOCASE AND v.available=1)''').fetchall()
+        candidates=[]
+        for row in rows:
+            data=json.loads(row['data']) if row['data'] else {}
+            if data.get('background_count',0)>0:
+                candidates.append((row['artist'],data))
+        if not candidates and rows:
+            name=random.choice(rows)['artist']
+            data=self.artist(name)
+            if data.get('background_count',0)>0: candidates.append((name,data))
+        if not candidates: return None
+        name,data=random.choice(candidates)
+        return {'artist':name,'index':random.randrange(data['background_count']),
+                'attribution':'Artist photography · fanart.tv','source_url':data['image_source_url']}
 
     def image(self, name, index):
         import hashlib

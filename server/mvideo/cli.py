@@ -19,6 +19,7 @@ def main():
     identity=sub.add_parser('identity'); identity.add_argument('artist'); identity.add_argument('mbid')
     override=sub.add_parser('override'); override.add_argument('id'); override.add_argument('--artist'); override.add_argument('--title',required=True); override.add_argument('--year',type=int)
     serve=sub.add_parser('serve'); serve.add_argument('--host',default='127.0.0.1'); serve.add_argument('--port',type=int,default=8765)
+    serve.add_argument('--scan-interval',type=int,default=0,help='Scan at startup and every N seconds (0 disables automatic scans)')
     args=parser.parse_args()
     if args.env:load_dotenv(args.env,override=False)
     settings=Settings.from_env(); settings.prepare()
@@ -26,7 +27,17 @@ def main():
     if args.command=='serve':
         import uvicorn
         from .api import create_app
-        uvicorn.run(create_app(settings),host=args.host,port=args.port,access_log=False,log_level='warning')
+        app=create_app(settings)
+        if args.scan_interval:
+            if args.scan_interval < 60: parser.error('Scan interval must be at least 60 seconds')
+            import threading
+            import time
+            def scan_loop():
+                while True:
+                    app.state.library.scan()
+                    time.sleep(args.scan_interval)
+            threading.Thread(target=scan_loop,daemon=True,name='mvideo-scan').start()
+        uvicorn.run(app,host=args.host,port=args.port,access_log=False,log_level='warning')
     elif args.command=='scan':print(json.dumps(Library(settings,database).scan()))
     elif args.command=='pair':print('One-time code (5 minutes, 5 attempts): '+Auth(database).pair_code())
     elif args.command=='revoke-all':

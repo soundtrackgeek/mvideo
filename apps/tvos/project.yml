@@ -1,0 +1,59 @@
+name: MVideo
+options:
+  bundleIdPrefix: com.soundtrackgeek
+  deploymentTarget:
+    tvOS: '18.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    DEVELOPMENT_TEAM: 3L5769JKCM
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: 0.3.0
+    CURRENT_PROJECT_VERSION: 1
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    TARGETED_DEVICE_FAMILY: '3'
+targets:
+  MVideo:
+    type: application
+    platform: tvOS
+    sources: [MVideo]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.soundtrackgeek.mvideo
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: mvideo
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Connect to your personal music video library.
+        ASSETCATALOG_COMPILER_APPICON_NAME: App Icon & Top Shelf Image
+      configs:
+        Debug:
+          INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
+  MVideoTests:
+    type: bundle.unit-test
+    platform: tvOS
+    sources: [MVideoTests]
+    dependencies:
+      - target: MVideo
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.soundtrackgeek.mvideo.tests
+  MVideoUITests:
+    type: bundle.ui-testing
+    platform: tvOS
+    sources: [MVideoUITests]
+    dependencies:
+      - target: MVideo
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.soundtrackgeek.mvideo.uitests
+schemes:
+  MVideo:
+    build:
+      targets:
+        MVideo: all
+    test:
+      targets: [MVideoTests, MVideoUITests]
+    archive:
+      config: Release

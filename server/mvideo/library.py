@@ -29,30 +29,59 @@ class Library:
     def scan(self):
         if not self.scan_lock.acquire(blocking=False):
             return self.scan_status
+        lock_file = None
+        try:
+            lock_file = (self.settings.state/'scan.lock').open('a+b')
+            if lock_file.tell() == 0:
+                lock_file.write(b'0'); lock_file.flush()
+            lock_file.seek(0)
+            if os.name == 'nt':
+                import msvcrt
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            if lock_file: lock_file.close()
+            self.scan_lock.release()
+            return {'state':'busy', 'error':'Another scan is already running or its lock is unavailable'}
         self.scan_status = {"state": "scanning", "scanned": 0, "changed": 0}
         try:
             root = self.settings.library.resolve(strict=True)
             if not root.is_dir():
                 raise OSError("Library root unavailable")
             seen = set()
+            walk_errors = []
             def fail(error):
-                raise error
+                walk_errors.append(type(error).__name__)
             # Collect stat data before changing availability. Partial/inaccessible walks never purge records.
             files = []
-            for directory, folders, names in os.walk(root, onerror=fail, followlinks=False):
-                folders[:] = [n for n in folders if not Path(directory, n).is_symlink()]
-                for name in names:
-                    path = Path(directory, name)
-                    if path.suffix.lower() not in EXTENSIONS or path.is_symlink():
-                        continue
-                    resolved = path.resolve(strict=True)
-                    if root not in resolved.parents:
-                        continue
-                    stat = path.stat()
-                    relative = path.relative_to(root).as_posix()
-                    identity = hashlib.sha256(relative.encode()).hexdigest()[:32]
-                    seen.add(identity)
-                    files.append((identity, relative, stat.st_size, stat.st_mtime_ns, path))
+            directories = [root]
+            while directories:
+                directory = directories.pop()
+                try:
+                    with os.scandir(directory) as entries:
+                        for entry in entries:
+                            if entry.is_symlink():
+                                continue
+                            path = Path(entry.path)
+                            if entry.is_dir(follow_symlinks=False):
+                                if not (hasattr(path, "is_junction") and path.is_junction()):
+                                    directories.append(path)
+                                continue
+                            if path.suffix.lower() not in EXTENSIONS:
+                                continue
+                            try:
+                                stat = entry.stat(follow_symlinks=False)
+                            except OSError as error:
+                                walk_errors.append(type(error).__name__)
+                                continue
+                            relative = path.relative_to(root).as_posix()
+                            identity = hashlib.sha256(relative.encode()).hexdigest()[:32]
+                            seen.add(identity)
+                            files.append((identity, relative, stat.st_size, stat.st_mtime_ns, path))
+                except OSError as error:
+                    fail(error)
             pending = []
             for identity, relative, size, mtime, path in files:
                 self.scan_status["scanned"] += 1
@@ -76,7 +105,7 @@ class Library:
                     db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
                 self.scan_status["changed"] += 1
             with self.database.connect() as db:
-                missing = [r[0] for r in db.execute("SELECT id FROM videos WHERE available=1") if r[0] not in seen]
+                missing = [] if walk_errors else [r[0] for r in db.execute("SELECT id FROM videos WHERE available=1") if r[0] not in seen]
                 for identity in missing:
                     db.execute("UPDATE videos SET available=0 WHERE id=?", (identity,))
                     db.execute("DELETE FROM search WHERE id=?", (identity,))
@@ -92,10 +121,13 @@ class Library:
                 with self.database.connect() as db:
                     db.execute("UPDATE videos SET probe=?,probe_error=? WHERE id=?", (probe,error,identity))
                 self.scan_status["pending"] -= 1
-            self.scan_status.update(state="idle")
+            self.scan_status.update(state="warning" if walk_errors else "idle", inaccessible=len(walk_errors))
+            if walk_errors:
+                self.scan_status["error"] = "Some files could not be read; no missing records were removed"
         except (OSError, ValueError):
             self.scan_status.update(state="error", error="Library unavailable or scan incomplete; existing records retained")
         finally:
+            lock_file.close()
             self.scan_lock.release()
         return self.scan_status
 
@@ -118,7 +150,7 @@ class Library:
                 params.append(expression)
         for key, val in (("artist", artist), ("year", year)):
             if val is not None:
-                clauses.append(f"{key}=?"); params.append(val)
+                clauses.append(f"{key}=?" + (" COLLATE NOCASE" if key == "artist" else "")); params.append(val)
         if decade is not None:
             clauses.append("year BETWEEN ? AND ?"); params += [decade, decade + 9]
         if unknown:
@@ -160,7 +192,7 @@ class Library:
         return {k: row[k] for k in ("id", "artist", "title", "year")} | {"warnings": json.loads(row["warnings"]), "probe_error": row["probe_error"]}
 
     def facets(self, kind, q="", limit=60, offset=0):
-        expression = {"artists": "artist", "years": "year", "decades": "(year/10)*10"}[kind]
+        expression = {"artists": "artist COLLATE NOCASE", "years": "year", "decades": "(year/10)*10"}[kind]
         where, params = self.scope(q=q)
         where += " AND " + ("artist IS NOT NULL" if kind == "artists" else "year IS NOT NULL")
         with self.database.connect() as db:

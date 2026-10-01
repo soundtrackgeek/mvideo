@@ -24,6 +24,30 @@ def login(app,client):
     response=client.post('/api/pair',json={'code':app.state.auth.pair_code()})
     return {'Authorization':'Bearer '+response.json()['token']}
 
+
+def test_featured_artwork_is_verified_library_only_and_scoped(service):
+    app,client,root=service
+    (root/'Library Artist - Song (2000).mp4').write_bytes(b'x')
+    app.state.library.scan()
+    headers=login(app,client)
+    assert client.get('/api/featured').status_code==401
+    assert client.get('/api/featured',headers=headers).json()=={'item':None}
+    data={'images':['https://assets.fanart.tv/one.jpg','https://assets.fanart.tv/two.jpg'],
+          'background_count':2,'image_source_url':'https://fanart.tv/artist/example/'}
+    with app.state.database.connect() as db:
+        for name in ('Library Artist','Outside Library'):
+            db.execute('INSERT INTO identities VALUES(?,?)',(name,'7364dea6-ca9a-48e3-be01-b44ad0d19897'))
+            db.execute('INSERT INTO metadata VALUES(?,?,?)',(name,json.dumps(data),9999999999))
+    images=set()
+    for _ in range(24):
+        result=client.get('/api/featured',headers=headers).json()['item']
+        assert result['artist']=='Library Artist'
+        assert result['image'].startswith('/artwork/') and 'assets.fanart.tv' not in result['image']
+        images.add(result['image'].split('/')[3])
+    assert images=={'0','1'}
+    client.delete('/api/session',headers=headers)
+    assert client.get(result['image']).status_code==401
+
 @pytest.mark.parametrize('name,artist,title,year,warning',[
  ('a-ha - Take On Me (1985).mp4','a-ha','Take On Me',1985,None),
  ('AC-DC - Rock & Roll! (1979).mkv','AC-DC','Rock & Roll!',1979,None),
@@ -51,6 +75,12 @@ def test_scan_search_incremental_and_offline(service):
     assert lib.videos(artist='a-ha',decade=1990)['total']==0
     assert lib.videos(q='" OR *')['total']==0
     assert lib.facets('decades')['items']==[{'name':1980,'count':1},{'name':1990,'count':1}]
+    (root/'A-HA - Another Song (2000).mp4').write_bytes(b'x')
+    lib.scan()
+    assert lib.videos(artist='A-Ha')['total']==2
+    assert lib.facets('artists')['total']==2
+    (root/'A-HA - Another Song (2000).mp4').unlink()
+    lib.scan()
     p.write_bytes(b'changed');assert lib.scan()['changed']==1
     p.unlink();assert lib.scan()['missing']==1
     root.rename(root.with_name('offline'))

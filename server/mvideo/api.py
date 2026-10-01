@@ -4,6 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query, Header
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 import threading
+import subprocess
 from .auth import Auth
 from .config import Settings
 from .database import Database
@@ -42,7 +43,7 @@ def create_app(settings=None):
     async def lifespan(app):
         yield
         playback.close()
-    app=FastAPI(title='mvideo',version='0.2.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.3.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
 
@@ -64,7 +65,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.2.0'}
+    def health(): return {'service':'mvideo','version':'0.3.0'}
 
     @app.post('/api/pair')
     def pair(body:PairRequest):
@@ -106,13 +107,24 @@ def create_app(settings=None):
     def facets(kind:Literal['artists','years','decades'],q:str=Query('',max_length=256),limit:int=Query(60,ge=1,le=100),offset:int=Query(0,ge=0),sid=Depends(session)):
         return library.facets(kind,q,limit,offset)
 
+    def artwork_url(name,index,sid):
+        import hashlib
+        from urllib.parse import quote
+        key=hashlib.sha256(name.encode()).hexdigest()
+        return f'/artwork/{key}/{index}/{auth.ticket(sid,"artwork:"+key+":"+str(index))}?name='+quote(name,safe='')
+
+    @app.get('/api/featured')
+    def featured(sid=Depends(session)):
+        item=metadata.featured()
+        if item:
+            item['image']=artwork_url(item['artist'],item.pop('index'),sid)
+        return {'item':item}
+
     @app.get('/api/artist')
     def artist(name:str=Query(max_length=512),sid=Depends(session)):
         data=metadata.artist(name).copy()
         # Never send provider credentials or provider request URLs to the client.
-        import hashlib
-        key=hashlib.sha256(name.encode()).hexdigest()
-        data['images']=[f'/artwork/{key}/{i}/{auth.ticket(sid,"artwork:"+key+":"+str(i))}?name='+__import__('urllib.parse',fromlist=['quote']).quote(name,safe='') for i,_ in enumerate(data['images'])]
+        data['images']=[artwork_url(name,i,sid) for i,_ in enumerate(data['images'])]
         return data
 
     @app.post('/api/queue')
@@ -141,7 +153,7 @@ def create_app(settings=None):
     def thumbnail(identity:str,ticket:str):
         if not auth.verify_ticket(ticket,'image:'+identity):raise HTTPException(401)
         try:path=playback.thumbnail(identity)
-        except (OSError,ValueError,TimeoutError):raise HTTPException(404,'Thumbnail unavailable')
+        except (OSError,ValueError,subprocess.SubprocessError):raise HTTPException(404,'Thumbnail unavailable')
         return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
 
     @app.get('/artwork/{key}/{index}/{ticket}')
