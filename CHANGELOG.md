@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.1] - 2026-10-01
+
+### Fixed
+
+- Resolve artist identities automatically from MusicBrainz song credits so fanart.tv photos are available beyond the three manually configured artists.
+- Load artwork for visible artist tiles and artist pages in the background, replacing temporary video stills as photos arrive.
+- Revisit negative cache entries from the manual-only lookup and preserve biographies when the artwork provider fails.
+- Keep ambiguous or missing matches on the video fallback, with bounded requests, caching and manual identity overrides.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added

@@ -95,11 +95,17 @@ struct NavigationStyle: ButtonStyle {
             }
             loadedScope = scope; loading = false
             if case .artist(let name) = page, !more {
-                let info: ArtistMetadata = try await api.request("/api/artist", query: [.init(name: "name", value: name)])
-                guard self.generation == generation, !Task.isCancelled else { return }
-                metadata = info
+                repeat {
+                    let info: ArtistMetadata = try await api.request("/api/artist", query: [
+                        .init(name: "name", value: name), .init(name: "background", value: "true")])
+                    guard self.generation == generation, !Task.isCancelled else { return }
+                    metadata = info
+                    guard info.pending == true else { break }
+                    try await Task.sleep(for: .seconds(2))
+                } while !Task.isCancelled
             }
         } catch {
+            guard !(error is CancellationError) else { return }
             guard self.generation == generation, !Task.isCancelled else { return }
             self.error = error.localizedDescription; loading = false
         }
@@ -210,7 +216,7 @@ struct BrowseScreen: View {
                         .font(.system(size: 28)).foregroundStyle(Theme.secondary)
                 }
                 if case .artist = page {
-                    Text(model.metadata?.biography ?? "Biography will appear when this artist’s identity is verified on your server.")
+                    Text(model.metadata?.biography ?? (model.metadata?.pending == true ? "Finding artist photos and biography…" : "Artist information is unavailable for this match."))
                         .font(.system(size: 24)).foregroundStyle(Theme.secondary).lineLimit(2).frame(maxWidth: 850, alignment: .leading)
                 }
                 if page.facet == nil && page != .search { actions }
@@ -310,7 +316,8 @@ struct BrowseScreen: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 24), count: 3), spacing: 26) {
             ForEach(model.facets) { facet in
                 NavigationLink(value: facetPage(facet)) {
-                    FacetCard(api: api, facet: facet, title: page == .decades ? "\(facet.name)s" : facet.name)
+                    FacetCard(api: api, facet: facet, title: page == .decades ? "\(facet.name)s" : facet.name,
+                              artistName: page == .artists ? facet.name : nil)
                 }.buttonStyle(CardStyle()).accessibilityIdentifier("facet-" + facet.name)
             }
         }.focusSection()

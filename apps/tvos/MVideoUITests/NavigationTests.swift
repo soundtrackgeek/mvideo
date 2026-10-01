@@ -1,6 +1,24 @@
 import XCTest
 
 final class NavigationTests: XCTestCase {
+    func testAutomaticallyMatchedArtistPhotosAndTiles() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["MVIDEO_TEST_ARTIST"] = "10,000 Maniacs"
+        app.launch()
+        try XCTSkipIf(app.textFields["server-origin"].waitForExistence(timeout: 3), "Pair the simulator with the real library.")
+        XCTAssertTrue(app.buttons["artist-photo-0"].waitForExistence(timeout: 60))
+        saveScreenshot(app, name: "Automatically matched artist page")
+        app.terminate()
+        app.launchEnvironment.removeValue(forKey: "MVIDEO_TEST_ARTIST")
+        app.launch()
+        XCTAssertTrue(app.buttons["nav-home"].waitForExistence(timeout: 10))
+        let remote = XCUIRemote.shared
+        remote.press(.right); remote.press(.right); remote.press(.select)
+        XCTAssertTrue(app.staticTexts["The artists you love."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["fanart.tv"].firstMatch.waitForExistence(timeout: 60))
+        saveScreenshot(app, name: "Artist grid upgrades to fanart.tv photography")
+    }
     func testArtistPhotosAreReachableAndReturnFocus() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

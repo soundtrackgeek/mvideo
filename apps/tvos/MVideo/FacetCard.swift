@@ -4,11 +4,16 @@ struct FacetCard: View {
     let api: API
     let facet: Facet
     let title: String
+    var artistName: String? = nil
+    @State private var metadata: ArtistMetadata?
+
+    private var imagePath: String? { metadata?.images.first ?? facet.image ?? facet.thumbnail }
+    private var attribution: String? { metadata?.images.isEmpty == false ? "fanart.tv" : facet.imageAttribution }
 
     var body: some View {
         Color.clear.frame(height: 270)
             .overlay {
-                Artwork(url: (facet.image ?? facet.thumbnail).flatMap { try? api.connection.url($0) },
+                Artwork(url: imagePath.flatMap { try? api.connection.url($0) },
                         fallbackURL: facet.thumbnail.flatMap { try? api.connection.url($0) })
             }
             .overlay {
@@ -24,7 +29,7 @@ struct FacetCard: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text("\(facet.count.formatted()) \(facet.count == 1 ? "video" : "videos")")
                         Spacer(minLength: 12)
-                        if let attribution = facet.imageAttribution {
+                        if let attribution {
                             Text(attribution).font(.system(size: 18))
                         }
                     }.font(.system(size: 23)).foregroundStyle(.white.opacity(0.9))
@@ -33,5 +38,18 @@ struct FacetCard: View {
                 .padding(26)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .task(id: artistName) {
+                guard let artistName else { return }
+                do {
+                    repeat {
+                        let result: ArtistMetadata = try await api.request("/api/artist", query: [
+                            .init(name: "name", value: artistName), .init(name: "background", value: "true")])
+                        try Task.checkCancellation()
+                        metadata = result
+                        guard result.pending == true else { return }
+                        try await Task.sleep(for: .seconds(3))
+                    } while !Task.isCancelled
+                } catch { /* Keep cached artwork or the scoped video still. */ }
+            }
     }
 }

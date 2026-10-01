@@ -2,7 +2,7 @@
 
 ## Installed Windows service
 
-The independent mvideo 0.4.0 service is installed at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. Deployed Python source matches this repository.
+The independent mvideo 0.4.1 service is installed at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. Deployed Python source matches this repository.
 
 The **mvideo Library** scheduled task is running as Local Service (`S-1-5-19`) with an `MSFT_TaskBootTrigger`, 30-second startup delay, failure restart and no execution time limit. It requires no interactive login. State/code ACLs and encrypted machine-DPAPI provider loading were installed with owner-approved administrator access. A fresh task launch and HTTPS health response passed. An actual Windows reboot was not performed. Tailscale's Windows service is Automatic.
 
@@ -22,7 +22,7 @@ A Windows shuffle queue returned **15,559 unique IDs**, covering the entire sele
 
 Verified library identities were installed for a-ha, Duran Duran and Tears for Fears. Each returned a real Last.fm biography and fanart.tv images over authenticated HTTPS; image fetches returned HTTP 200. Twelve featured-image requests sampled all three artists. The native home screen visibly rendered a Tears for Fears background, artist attribution and real catalog thumbnails, with 15,559 videos shown.
 
-Home chooses a random available background from verified library artists once per launch, retains it during navigation and falls back to a library thumbnail. Additional artists need explicit MusicBrainz identity approval before provider content is displayed; the whole artist library has not been identity-matched. Provider credentials remain server-only, encrypted on Windows, and were not bundled in the app.
+Home chooses a random available background from matched library artists once per launch, retains it during navigation and falls back to a library thumbnail. In 0.4.1, opened artist pages and visible artist tiles automatically match artists using MusicBrainz recording credits; manual mappings remain available for unresolved names. The whole artist library has not been identity-matched or crawled. Provider credentials remain server-only, encrypted on Windows, and were not bundled in the app.
 
 ## Automated and native verification
 
@@ -40,6 +40,17 @@ Home chooses a random available background from verified library artists once pe
 - Local evidence: `output/artwork-verification.json`, `output/ui-0.4.0/`, `output/gallery-0.4.0/`. Final targeted result: `test_sim_2026-10-01T09-30-02-891Z_pid66859_3d5c1716.xcresult` in the XcodeBuildMCP workspace.
 - Release 0.4.0 (2) archived and exported with Xcode 26.6, passed strict signature/entitlement verification, and uploaded successfully to App Store Connect.
 - Native controls use **Artist - Track (Year)**; missing artist/year values are omitted, with unit coverage for incomplete metadata and a live check of AVPlayerItem's title metadata.
+
+## 0.4.1 artist-artwork correction
+
+- Root cause: only three manual artist identities could use fanart.tv, and the Artists grid read existing cached images without initiating lookup. Most artists therefore retained video stills indefinitely.
+- Added automatic MusicBrainz matching from exact artist/alias and library-song recording credits, followed by fanart.tv and Last.fm. Conflicting identities, collaborations and truncated searches remain unresolved; manual mappings take precedence.
+- Missing artwork now resolves through one background worker with at most 64 pending artists. Visible tiles and artist pages poll until the cached result is ready, without blocking navigation. Old manual-only negative entries are reconsidered immediately. Provider errors preserve already available biography/photo data and use a shorter retry cache.
+- **36 server tests passed** after the final provider retry correction. Coverage includes ambiguous/wrong-song matches, aliases, truncation, manual overrides, old negative caches, nonblocking/deduplicated lookup, library-only requests, signed/revoked image access, and Last.fm errors/rate limits that must not block fanart.tv. One existing dependency deprecation warning.
+- **11 distinct native tests passed, zero skips**, across the ten-test smoke run and the new automatic-artwork UI test against Windows. The latter verifies newly matched 10,000 Maniacs photos and fanart.tv grid attribution. Visual inspection confirmed the artist-page hero switches to the band photo and the grid shows photography for ’Til Tuesday, 10 Years and 10,000 Maniacs.
+- Five real Windows automatic matches returned photos and downloadable image bytes: ’Til Tuesday (2), 10 Years (12), 10,000 Maniacs (3), Matchbox Twenty (7), Alanis Morissette (12). No manual mappings were added for these artists. A separate local test of `(hed) p.e.` / `Represent` found no exact recording match and correctly retained the fallback. This is not a claim of complete provider coverage.
+- Evidence: ignored `output/windows-matching-verification.json`, `output/matching-verification.json`, `output/artwork-0.4.1/`, `output/artist-fanart-0.4.1.jpg`. Automatic-artwork UI result: `test_sim_2026-10-01T09-55-39-157Z_pid66859_a5c156cf.xcresult` in the local XcodeBuildMCP workspace.
+- Stable Xcode 26.6 archive and App Store export succeeded for **0.4.1 (3)**; the exported IPA passed strict code-signature verification. Distribution uses the existing archive-without-development-signing, distribution-sign-at-export workflow because no physical development device is registered.
 
 ## TestFlight delivery
 
@@ -62,6 +73,7 @@ Sources checked 2026-10-01:
 - [Last.fm artist.getInfo](https://www.last.fm/api/show/artist.getInfo): public API key required, user authentication/shared secret unnecessary, MusicBrainz UUID supported, error 29 is rate limiting.
 - [Last.fm API terms](https://www.last.fm/api/tos): attribution and links retained. Personal use only in this milestone; broader/commercial distribution requires revisiting provider terms.
 - [Official fanart.tv API client](https://github.com/fanart-tv/fanart.tv-api): music uses MusicBrainz artist IDs; project key required, personal client key optional, 429 backoff. Conservative one-request/second local budget is an application policy, not a claimed published quota.
+- [MusicBrainz API](https://musicbrainz.org/doc/MusicBrainz_API) and [search documentation](https://musicbrainz.org/doc/MusicBrainz_API/Search): recording/artist credits support automatic identity matching; an identifying User-Agent and at most one request per second are required. [fanart.tv API](https://api.fanart.tv/) confirms the artist endpoint uses MusicBrainz artist UUIDs.
 
 ## Release gates
 
@@ -72,7 +84,7 @@ Sources checked 2026-10-01:
 | Private HTTPS and pairing | Verified Windows route and native Keychain |
 | Representative seven-format playback and seeking | Passed through Windows HTTPS; originals unchanged |
 | Live Last.fm/fanart.tv and random home image | Verified for three approved artist identities |
-| tvOS simulator build/navigation/playback | Ten distinct tests passed across full and targeted runs, zero skipped |
+| tvOS simulator build/navigation/playback | Eleven distinct tests passed across full and targeted runs, zero skipped |
 | Physical Apple TV | Owner-confirmed installation, pairing and basic playback on 0.3.0; App Store Connect reports Apple TV 4K / tvOS 26.6; generation and 0.4.0 UI still need device verification |
 | Signing/archive/export/upload | Passed; dedicated identity |
 | Apple processing | Complete |

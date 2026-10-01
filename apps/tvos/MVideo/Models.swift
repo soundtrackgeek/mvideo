@@ -47,6 +47,7 @@ struct ArtistMetadata: Decodable {
     let attribution: String?
     let imageAttribution: String?
     let imageSourceUrl: String?
+    let pending: Bool?
 }
 struct FeaturedArtwork: Decodable {
     let artist: String

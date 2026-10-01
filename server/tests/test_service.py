@@ -18,11 +18,33 @@ def service(tmp_path):
     app.state.library.probe=lambda path: PROBE
     yield app,TestClient(app),root
     app.state.playback.close()
+    app.state.metadata.close()
 
 
 def login(app,client):
     response=client.post('/api/pair',json={'code':app.state.auth.pair_code()})
     return {'Authorization':'Bearer '+response.json()['token']}
+
+
+def test_background_artist_lookup_is_library_only_and_signs_images(service):
+    app,client,root=service
+    (root/'Band - Song (2000).mp4').write_bytes(b'x')
+    app.state.library.scan()
+    headers=login(app,client)
+    calls=[]
+    def lookup(name):
+        calls.append(name)
+        return {'state':'available','images':['https://assets.fanart.tv/band.jpg'],'pending':False}
+    app.state.metadata.lookup=lookup
+    assert client.get('/api/artist?name=Band&background=true').status_code==401
+    assert client.get('/api/artist?name=Outside&background=true',headers=headers).status_code==404
+    assert calls==[]
+    data=client.get('/api/artist?name=BAND&background=true',headers=headers).json()
+    assert calls==['Band'] and data['pending'] is False
+    assert data['images'][0].startswith('/artwork/')
+    assert 'assets.fanart.tv' not in data['images'][0]
+    client.delete('/api/session',headers=headers)
+    assert client.get(data['images'][0]).status_code==401
 
 
 def test_facet_artwork_is_scoped_cached_and_authorized(service):
@@ -72,7 +94,7 @@ def test_featured_artwork_is_verified_library_only_and_scoped(service):
     assert client.get('/api/featured').status_code==401
     assert client.get('/api/featured',headers=headers).json()=={'item':None}
     data={'images':['https://assets.fanart.tv/one.jpg','https://assets.fanart.tv/two.jpg'],
-          'background_count':2,'image_source_url':'https://fanart.tv/artist/example/'}
+          'background_count':2,'image_source_url':'https://fanart.tv/artist/example/', 'mbid':'7364dea6-ca9a-48e3-be01-b44ad0d19897'}
     with app.state.database.connect() as db:
         for name in ('Library Artist','Outside Library'):
             db.execute('INSERT INTO identities VALUES(?,?)',(name,'7364dea6-ca9a-48e3-be01-b44ad0d19897'))

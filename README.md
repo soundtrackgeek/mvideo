@@ -4,7 +4,7 @@ A native Apple TV music video app backed by an independent Windows library and s
 
 The Windows service and native tvOS app are implemented. The app supports artist/title/year search, artist biographies and fanart.tv photography, year/decade browsing, full-selection shuffle, continuous playback, queue controls and return to the previous focused video and scroll position. Home chooses a random fanart.tv background from verified artists in the library at launch, keeps it stable while browsing, and falls back to a video thumbnail.
 
-Artist tiles use cached, verified fanart.tv photography when available, otherwise a still from that artist's videos. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
+Artist tiles and pages automatically look up fanart.tv photography as you browse. The server matches artists against MusicBrainz recording credits using songs in your library, then caches their photos. Tiles replace temporary video stills when photos arrive; unmatched artists or missing provider photos keep the fallback. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
 
 The real Windows catalog contains **15,559 videos**. Version **0.4.0 (2)** is available in the dedicated **mvideo testers** TestFlight group. The requested invitation to `jtillnes2@yahoo.com` was accepted; update mvideo through TestFlight on Apple TV. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
 
@@ -73,9 +73,9 @@ mvideo scan
 mvideo identity 'a-ha' 7364dea6-ca9a-48e3-be01-b44ad0d19897
 ```
 
-Artist identities are explicitly verified; the first installed artwork pool includes a-ha, Duran Duran and Tears for Fears. Additional artists become eligible for home photography after their identity is approved and artwork loaded. Name capitalization variants share an artist scope.
+Artist matching is automatic when exact artist (or alias) and song-title credits identify one MusicBrainz artist. It checks up to three library songs, uses two matching songs when available, and accepts an unambiguous single-song match for small libraries. Conflicting identities, collaboration credits and truncated search results remain unresolved. Explicit `mvideo identity` mappings override automatic matches. Cached matched artists also join the home-background pool. Name capitalization variants share an artist scope.
 
-Only approve an artist MusicBrainz UUID after checking the artist's identity. Name-only Last.fm results are candidates; the app must show metadata unavailable until identity is verified. Verified metadata is cached for 24 hours; failed/missing matches for 15 minutes. Requests are serialized at no more than one per second with rate-limit backoff. Artist pages carry Last.fm and fanart.tv credit/source links. No provider crawl is performed during scanning.
+Only set a manual MusicBrainz UUID after checking the artist's identity. Name-only Last.fm results remain candidates; they do not unlock photos by themselves. Metadata and missing matches are cached for 24 hours; transient failures retry after 15 minutes. Visible artist tiles and opened pages trigger a single background worker with a maximum of 64 pending artists, while the app refreshes results without blocking navigation. Requests are serialized at no more than one per second with rate-limit backoff and an identifying User-Agent. Artist pages carry Last.fm and fanart.tv credit/source links. No provider crawl is performed during scanning.
 
 ### Playback and queues
 

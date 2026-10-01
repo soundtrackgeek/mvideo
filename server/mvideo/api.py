@@ -43,7 +43,8 @@ def create_app(settings=None):
     async def lifespan(app):
         yield
         playback.close()
-    app=FastAPI(title='mvideo',version='0.4.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+        metadata.close()
+    app=FastAPI(title='mvideo',version='0.4.1',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
 
@@ -65,7 +66,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.4.0'}
+    def health(): return {'service':'mvideo','version':'0.4.1'}
 
     @app.post('/api/pair')
     def pair(body:PairRequest):
@@ -130,8 +131,12 @@ def create_app(settings=None):
         return {'item':item}
 
     @app.get('/api/artist')
-    def artist(name:str=Query(max_length=512),sid=Depends(session)):
-        data=metadata.artist(name).copy()
+    def artist(name:str=Query(max_length=512),background:bool=False,sid=Depends(session)):
+        with database.connect() as db:
+            row=db.execute('SELECT artist FROM videos WHERE artist=? COLLATE NOCASE AND available=1 LIMIT 1',(name,)).fetchone()
+        if not row: raise HTTPException(404,'Artist is not in your library')
+        name=row['artist']
+        data=(metadata.lookup(name) if background else metadata.artist(name)).copy()
         # Never send provider credentials or provider request URLs to the client.
         data['images']=[artwork_url(name,i,sid) for i,_ in enumerate(data['images'])]
         return data
