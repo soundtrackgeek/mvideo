@@ -79,6 +79,12 @@ Home chooses a random available background from matched library artists once per
 - The actual CLI measured **two existing local video samples** from `output/media-verification/playback`, saving **-14.48 LUFS / +0.13 dBTP** and **-23.15 LUFS / -7.50 dBTP**. `--status` reported two measured and ten pending files in the isolated local smoke catalog. Evidence is in ignored `output/loudness-smoke/library.sqlite3`.
 - The scanner was exercised on macOS with FFmpeg. The PowerShell launcher and Windows process-priority path have not been executed on Windows. The production library has **not** been measured or this server update deployed. Apple TV playback does not yet consume the measurements; no TestFlight build was created for this script.
 
+## 0.7.1 loudness launcher environment fix
+
+- Fixed the missing-environment error reported from `C:\_code\mvideo`: a checkout without `.venv\Scripts\python.exe` now falls back to the executable recorded in the installed service's `background.json`. `PYTHONPATH` continues to select scanner code from the invoking checkout. An explicit `-PythonPath` overrides both choices.
+- **Seven PowerShell execution checks passed** using a portable PowerShell 7.6.6 runtime on macOS: separate-checkout/service-environment fallback, paths containing spaces and argument forwarding, local-environment priority, explicit override, missing-interpreter diagnostics, native exit-code propagation, and actual `mvideo measure-loudness --status` execution from a separate checkout. Checks used disposable directories and isolated state; they did not touch the Windows service or production library. Reproduction harness: ignored `output/powershell-qa/check_launcher.py`.
+- This validates launcher execution and interpreter/source selection under PowerShell; native Windows execution remains to be confirmed by rerunning the updated script on the PC.
+
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.

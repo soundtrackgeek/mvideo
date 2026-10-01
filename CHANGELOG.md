@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1] - 2026-10-01
+
+### Fixed
+
+- Let the Windows loudness launcher reuse the Python executable recorded in the service's `background.json` when a separate source checkout has no local virtual environment. Continue loading scanner code from the invoking checkout.
+- Add a `-PythonPath` override and actionable missing-environment errors without requiring a redundant library scan.
+
 ## [0.7.0] - 2026-10-01
 
 ### Added

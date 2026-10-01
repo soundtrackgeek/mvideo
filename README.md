@@ -114,9 +114,9 @@ Only set a manual MusicBrainz UUID after checking the artist's identity. Name-on
 
 #### Measure audio loudness
 
-The **0.7.0 server source** includes a resumable audio measurement command for preparing volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. This command gathers measurements; the current Apple TV app does **not yet apply them** during playback. This source update has not been deployed to the Windows service or TestFlight.
+The **0.7.1 server source** includes a resumable audio measurement command for preparing volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. This command gathers measurements; the current Apple TV app does **not yet apply them** during playback. This source update has not been deployed to the Windows service or TestFlight.
 
-On the Windows PC, run from an updated mvideo source directory with its existing Python environment:
+On the Windows PC, run from an updated mvideo source directory. The launcher uses that checkout's Python environment when present, or reuses the installed service's Python environment:
 
 ```powershell
 .\scripts\windows-measure-loudness.ps1             # measure the indexed library; resume on subsequent runs
@@ -124,7 +124,7 @@ On the Windows PC, run from an updated mvideo source directory with its existing
 .\scripts\windows-measure-loudness.ps1 -Limit 10   # small batch before running the whole library
 ```
 
-The launcher reads `background.json` in the installed ProgramData state directory to use the service's library and FFmpeg paths. It also supports an interactive installation, `MVIDEO_STATE`, and explicit `-Library` / `-State` paths. No provider credentials, service restart, or Apple TV update are required to measure audio. If the catalog needs updating, run `scripts/windows-start.ps1 -Scan` first with the same library/state configuration.
+The launcher reads `background.json` in the installed ProgramData state directory to use the service's library, FFmpeg paths, and fallback Python executable. A separate checkout (for example `C:\_code\mvideo`) can therefore use the service environment at `L:\mvideo-service` while running the scanner source from the new checkout; there is no need to install another environment or rescan an already indexed library. It also supports an interactive installation, `MVIDEO_STATE`, explicit `-Library` / `-State` paths, and `-PythonPath` to select an existing Python 3.12+ executable with mvideo's dependencies. No provider credentials, service restart, or Apple TV update are required to measure audio. If the catalog needs updating, run `scripts/windows-start.ps1 -Scan` from the installed service checkout with the same library/state configuration.
 
 The portable CLI uses the usual `MVIDEO_LIBRARY`, `MVIDEO_STATE`, `MVIDEO_FFMPEG`, and `MVIDEO_FFPROBE` settings:
 

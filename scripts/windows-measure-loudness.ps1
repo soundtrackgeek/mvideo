@@ -1,6 +1,7 @@
 param(
     [string]$Library = '',
     [string]$State = '',
+    [string]$PythonPath = '',
     [switch]$Force,
     [ValidateRange(0, 2147483647)][int]$Limit = 0,
     [ValidateRange(1, 2147483647)][int]$TimeoutSeconds = 1800,
@@ -24,8 +25,18 @@ if ($config) {
     $env:MVIDEO_FFMPEG = $config.FFmpeg
     $env:MVIDEO_FFPROBE = $config.FFprobe
 }
-$python = Join-Path $repo '.venv\Scripts\python.exe'
-if (!(Test-Path -LiteralPath $python)) { throw 'Run scripts/windows-start.ps1 -Scan once to install and index this library.' }
+$localPython = Join-Path $repo '.venv\Scripts\python.exe'
+if ($PythonPath) {
+    if (!(Test-Path -LiteralPath $PythonPath -PathType Leaf)) { throw "Python executable not found: $PythonPath" }
+    $python = $PythonPath
+} elseif (Test-Path -LiteralPath $localPython -PathType Leaf) {
+    $python = $localPython
+} elseif ($config.Python -and (Test-Path -LiteralPath $config.Python -PathType Leaf)) {
+    # A separate checkout can reuse the running service's installed dependencies.
+    $python = $config.Python
+} else {
+    throw "No mvideo Python environment was found in this checkout or '$configFile'. Use -State to select the installed service state, or -PythonPath to select a Python 3.12+ environment with mvideo's dependencies."
+}
 # Use the source beside this launcher even if the installed package is older.
 $env:PYTHONPATH = (Join-Path $repo 'server') + [IO.Path]::PathSeparator + $env:PYTHONPATH
 $env:PYTHONUTF8 = '1'
