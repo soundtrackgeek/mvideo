@@ -112,6 +112,38 @@ Only set a manual MusicBrainz UUID after checking the artist's identity. Name-on
 
 ### Playback and queues
 
+#### Measure audio loudness
+
+The **0.7.0 server source** includes a resumable audio measurement command for preparing volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. This command gathers measurements; the current Apple TV app does **not yet apply them** during playback. This source update has not been deployed to the Windows service or TestFlight.
+
+On the Windows PC, run from an updated mvideo source directory with its existing Python environment:
+
+```powershell
+.\scripts\windows-measure-loudness.ps1             # measure the indexed library; resume on subsequent runs
+.\scripts\windows-measure-loudness.ps1 -Status     # saved coverage; no audio decoding
+.\scripts\windows-measure-loudness.ps1 -Limit 10   # small batch before running the whole library
+```
+
+The launcher reads `background.json` in the installed ProgramData state directory to use the service's library and FFmpeg paths. It also supports an interactive installation, `MVIDEO_STATE`, and explicit `-Library` / `-State` paths. No provider credentials, service restart, or Apple TV update are required to measure audio. If the catalog needs updating, run `scripts/windows-start.ps1 -Scan` first with the same library/state configuration.
+
+The portable CLI uses the usual `MVIDEO_LIBRARY`, `MVIDEO_STATE`, `MVIDEO_FFMPEG`, and `MVIDEO_FFPROBE` settings:
+
+```sh
+.venv/bin/mvideo --env .env measure-loudness
+.venv/bin/mvideo --env .env measure-loudness --status
+.venv/bin/mvideo --env .env measure-loudness --limit 10
+```
+
+- One video is processed at a time with one audio decoding/filter thread; Windows FFmpeg processes run below normal priority. Full-library analysis must read every audio track and may take hours. Progress is printed before and after each video.
+- Each result is committed immediately to `audio_loudness` in the existing `library.sqlite3` (normally `C:\ProgramData\mvideo\library.sqlite3`). **Ctrl+C** stops the scan; rerunning resumes by skipping unchanged completed measurements. The originals are never written, tagged, or replaced, and no converted media copies are generated.
+- Measurements record source size/mtime, analysis profile, FFmpeg version, audio stream index, and timestamp. A changed source or analysis profile is remeasured. Run the ordinary catalog scan after replacing files; an unindexed change produces an error instead of saving a measurement against an old file version. Coverage status reflects the indexed catalog, not a fresh filesystem scan.
+- Silent or below-gate tracks and videos without audio are recorded separately, with no invented loudness/gain. Decode failures and timeouts are recorded, later videos continue, and failed files retry on the next run. Two loudness scans cannot run against the same state directory simultaneously.
+- Use `-Force` / `--force` to remeasure completed videos. `-Limit N` / `--limit N` counts attempted files, including failures, but excludes cached results. `-TimeoutSeconds N` / `--timeout N` changes the default 1,800-second analysis timeout per video. Exit codes: 0 for a successful batch, 1 for failures/deferred results, 130 for interruption.
+
+Analysis uses the first audio stream, converted to a defined stereo/48 kHz mix before measurement; the profile is `first-audio-stereo-48k-r128-v1`. Only the filter's **input** measurements are retained, so they are independent of a future playback loudness target. They describe this source mix; a future player integration must account for its channel mix and any peaks introduced by AAC conversion. Changing the listening target does not require another scan.
+
+#### Playback behavior
+
 The server uses actual FFprobe stream metadata, not extensions. Conservative first-generation Apple TV 4K baseline: progressive H.264 up to 1080p/60, 8-bit 4:2:0 and AAC-LC stereo in MP4 plays directly. Compatible streams in other containers are remuxed; incompatible audio/video receives a cached H.264/AAC MP4 derivative. Interlaced material is deinterlaced; sample aspect ratio is preserved. HDR needs explicit compatibility review and is not silently converted to washed-out SDR.
 
 Conversions run one at a time and must finish before playback, enabling full-file byte-range seeking. Initial conversion can take time, especially 4K VP9. Original files remain unchanged. Native playback prefetches the next queue item. HLS/adaptive renditions are evaluated in the plan but are not currently implemented. Cache outputs are pinned while media tickets remain valid; old unpinned outputs are evicted. A full cache reports a recoverable conversion error.

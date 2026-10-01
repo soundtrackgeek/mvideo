@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import subprocess
+import sys
 import uuid
 from pathlib import Path
 from dotenv import load_dotenv
@@ -16,6 +18,11 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('scan'); sub.add_parser('pair'); sub.add_parser('revoke-all')
     sub.add_parser('report')
+    loudness=sub.add_parser('measure-loudness',help='Measure catalog audio without changing media; resumes automatically')
+    loudness.add_argument('--force',action='store_true',help='Remeasure unchanged videos too')
+    loudness.add_argument('--limit',type=int,help='Process at most N uncached videos in this run')
+    loudness.add_argument('--timeout',type=int,default=1800,help='Maximum analysis seconds per video (default: 1800)')
+    loudness.add_argument('--status',action='store_true',help='Report saved measurement coverage without scanning')
     starters=sub.add_parser('seed-playlists',help='Resolve curated starter mixes against the catalog')
     starters.add_argument('--apply',action='store_true',help='Save once; otherwise preview matched and missing songs')
     identity=sub.add_parser('identity'); identity.add_argument('artist'); identity.add_argument('mbid')
@@ -23,6 +30,8 @@ def main():
     serve=sub.add_parser('serve'); serve.add_argument('--host',default='127.0.0.1'); serve.add_argument('--port',type=int,default=8765)
     serve.add_argument('--scan-interval',type=int,default=0,help='Scan at startup and every N seconds (0 disables automatic scans)')
     args=parser.parse_args()
+    if args.command=='measure-loudness' and ((args.limit is not None and args.limit < 1) or args.timeout < 1):
+        parser.error('Loudness limit and timeout must be positive')
     if args.env:load_dotenv(args.env,override=False)
     settings=Settings.from_env(); settings.prepare()
     database=Database(settings.state/'library.sqlite3')
@@ -41,6 +50,23 @@ def main():
             threading.Thread(target=scan_loop,daemon=True,name='mvideo-scan').start()
         uvicorn.run(app,host=args.host,port=args.port,access_log=False,log_level='warning')
     elif args.command=='scan':print(json.dumps(Library(settings,database).scan()))
+    elif args.command=='measure-loudness':
+        from .loudness import LoudnessScanner
+        scanner=LoudnessScanner(settings,database)
+        if args.status:
+            print(json.dumps(scanner.status(),indent=2))
+            return
+        try:
+            result=scanner.run(force=args.force,limit=args.limit,timeout=args.timeout,
+                               progress=lambda event: print(json.dumps(event,allow_nan=False),flush=True))
+        except KeyboardInterrupt:
+            print('Interrupted. Completed measurements are saved; rerun the same command to resume.',file=sys.stderr)
+            raise SystemExit(130)
+        except (OSError,ValueError,RuntimeError,subprocess.SubprocessError) as error:
+            print('Loudness scan could not start: '+str(error),file=sys.stderr)
+            raise SystemExit(1)
+        print(json.dumps(result,indent=2,allow_nan=False))
+        if result['error'] or result['deferred']: raise SystemExit(1)
     elif args.command=='seed-playlists':
         from .playlists import starter_playlists
         print(json.dumps(starter_playlists(database,apply=args.apply),indent=2,ensure_ascii=False))

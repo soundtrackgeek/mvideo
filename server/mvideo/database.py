@@ -31,6 +31,13 @@ CREATE TABLE IF NOT EXISTS playlist_items(
 CREATE TABLE IF NOT EXISTS playlist_seeds(
  key TEXT PRIMARY KEY, playlist_id TEXT REFERENCES playlists(id) ON DELETE SET NULL
 );
+CREATE TABLE IF NOT EXISTS audio_loudness(
+ video_id TEXT PRIMARY KEY REFERENCES videos(id) ON DELETE CASCADE,
+ source_size INTEGER NOT NULL, source_mtime INTEGER NOT NULL, analysis_version TEXT NOT NULL,
+ status TEXT NOT NULL CHECK(status IN ('measured','below_gate','no_audio','error')),
+ integrated_lufs REAL, true_peak_dbtp REAL, loudness_range_lu REAL, threshold_lufs REAL,
+ audio_stream_index INTEGER, ffmpeg_version TEXT NOT NULL, measured_at INTEGER NOT NULL, error TEXT
+);
 """
 
 

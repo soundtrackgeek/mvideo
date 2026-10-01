@@ -71,6 +71,14 @@ Home chooses a random available background from matched library artists once per
 - Final result: `test_sim_2026-10-01T13-33-46-871Z_pid63653_d37875d7.xcresult` in the local XcodeBuildMCP workspace (81.4 seconds). Simulator playback screenshot inspected in ignored `output/double-tap-screenshots/`.
 - App source version is **0.6.0 (5)**. This change has not been uploaded to TestFlight. Automated remote checks synthesize directional presses; light double-tapping on the physical Siri Remote still needs verification.
 
+## 0.7.0 loudness measurement script
+
+- Added `mvideo measure-loudness` and `scripts/windows-measure-loudness.ps1`. Measurements are committed per video to the existing database, independent of playback preparation. Only audio is decoded; filter output is discarded. The Windows launcher uses installed background configuration without reading provider secrets.
+- **55 server tests passed** (21.64 seconds), including ten new loudness tests and the existing real-media playback tests. One existing dependency deprecation warning. Coverage includes persisted resume, force/batch behavior, source/profile invalidation, changes during analysis, concurrent catalog updates, interruption/lock release, offline libraries, path containment, failure/timeout handling, CLI exit codes, and nonfinite/silent measurements.
+- Real FFmpeg fixtures confirmed a known 20 dB difference in integrated loudness and true peak, selection of the first of two audio tracks, separate silence/no-audio states, unchanged source hashes and mtimes, and no generated playback media.
+- The actual CLI measured **two existing local video samples** from `output/media-verification/playback`, saving **-14.48 LUFS / +0.13 dBTP** and **-23.15 LUFS / -7.50 dBTP**. `--status` reported two measured and ten pending files in the isolated local smoke catalog. Evidence is in ignored `output/loudness-smoke/library.sqlite3`.
+- The scanner was exercised on macOS with FFmpeg. The PowerShell launcher and Windows process-priority path have not been executed on Windows. The production library has **not** been measured or this server update deployed. Apple TV playback does not yet consume the measurements; no TestFlight build was created for this script.
+
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.

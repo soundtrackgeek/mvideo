@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0] - 2026-10-01
+
+### Added
+
+- Resumable `mvideo measure-loudness` command and Windows launcher for first-audio-track EBU R128 measurements, including integrated loudness, true peak, loudness range and threshold, without modifying source media or creating conversions.
+- Per-video SQLite checkpoints with source/profile invalidation, progress and coverage reporting, bounded batches, force remeasurement, timeouts, duplicate-run locking, and retryable errors. Silence/below-gate and missing-audio states are stored explicitly.
+- Real FFmpeg and regression coverage for level differences, first-track selection, source preservation, cached/resumed runs, interruption, file changes, errors and locking.
+
+### Changed
+
+- Server source/package version is 0.7.0. Measurements prepare future normalization; Apple TV playback gain is not yet implemented and this release has not been deployed.
+
 ## [0.6.0] - 2026-10-01
 
 ### Added
