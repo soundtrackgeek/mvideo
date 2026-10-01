@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0] - 2026-10-01
+
+### Added
+
+- Double-tap the right edge of the Siri Remote touchpad during playback with controls hidden to skip to the next video, including normal end-of-selection behavior.
+- Keep single-tap seeking and rightward navigation in playback controls and Up Next available.
+
 ## [0.5.0] - 2026-10-01
 
 ### Added

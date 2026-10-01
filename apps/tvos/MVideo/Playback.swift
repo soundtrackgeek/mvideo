@@ -136,20 +136,27 @@ struct PlaybackScreen: View {
                 }.foregroundStyle(Theme.ivory)
             }
         }.accessibilityIdentifier("playback-screen")
+            .accessibilityValue(model.finished ? "Selection finished" : "\(model.preparing ? "Preparing video" : "Video") \(model.queue.index + 1) of \(model.queue.ids.count)")
             .onExitCommand { dismiss() }
             .task { model.start() }.onDisappear { model.stop() }
     }
 }
 struct NativePlayer: UIViewControllerRepresentable {
     let model: PlayerModel
+    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = model.player
         controller.videoGravity = .resizeAspect
         controller.showsPlaybackControls = true
+        controller.delegate = context.coordinator
+        context.coordinator.controller = controller
+        controller.view.addGestureRecognizer(context.coordinator.skipGesture)
         return controller
     }
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        context.coordinator.model = model
+        context.coordinator.skipGesture.isEnabled = !model.preparing && model.error == nil && !model.finished
         controller.transportBarCustomMenuItems = [
             UIAction(title: "Previous video", image: UIImage(systemName: "backward.end.fill")) { _ in model.previous() },
             UIAction(title: "Next video", image: UIImage(systemName: "forward.end.fill")) { _ in model.next() }
@@ -158,6 +165,50 @@ struct NativePlayer: UIViewControllerRepresentable {
         queue.title = "Up Next"
         queue.preferredContentSize = CGSize(width: 1400, height: 480)
         controller.customInfoViewControllers = [queue]
+    }
+    static func dismantleUIViewController(_ controller: AVPlayerViewController, coordinator: Coordinator) {
+        controller.view.removeGestureRecognizer(coordinator.skipGesture)
+        controller.delegate = nil
+        coordinator.controller = nil
+    }
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate, AVPlayerViewControllerDelegate {
+        var model: PlayerModel
+        weak var controller: AVPlayerViewController?
+        private var transportBarVisible = false
+        lazy var skipGesture: UITapGestureRecognizer = {
+            let gesture = UITapGestureRecognizer(target: self, action: #selector(skipVideo(_:)))
+            gesture.name = "Double tap right to skip video"
+            gesture.numberOfTapsRequired = 2
+            // tvOS delivers directional remote taps as arrow presses. Raw indirect
+            // touches have relative coordinates and must not trigger this shortcut.
+            gesture.allowedPressTypes = [NSNumber(value: UIPress.PressType.rightArrow.rawValue)]
+            gesture.allowedTouchTypes = []
+            gesture.delegate = self
+            return gesture
+        }()
+        init(model: PlayerModel) { self.model = model }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive press: UIPress) -> Bool {
+            // Leave rapid rightward navigation in the transport bar and Up Next alone.
+            guard !transportBarVisible, !model.preparing, model.error == nil, !model.finished,
+                  controller?.presentedViewController == nil else { return false }
+            if let controller, let focusedView = UIFocusSystem.focusSystem(for: controller)?.focusedItem as? UIView,
+               controller.customInfoViewControllers.contains(where: { info in
+                   info.viewIfLoaded.map { focusedView.isDescendant(of: $0) } ?? false
+               }) { return false }
+            return true
+        }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // Give the double tap priority over AVKit's single right-tap seek.
+            guard let tap = otherGestureRecognizer as? UITapGestureRecognizer else { return false }
+            return tap.numberOfTapsRequired == 1 && tap.allowedPressTypes.contains(NSNumber(value: UIPress.PressType.rightArrow.rawValue))
+        }
+        func playerViewController(_ playerViewController: AVPlayerViewController, willTransitionToVisibilityOfTransportBar visible: Bool, with coordinator: AVPlayerViewControllerAnimationCoordinator) {
+            transportBarVisible = visible
+        }
+        @objc func skipVideo(_ gesture: UITapGestureRecognizer) {
+            guard gesture.state == .ended, !model.preparing, model.error == nil, !model.finished else { return }
+            model.next()
+        }
     }
 }
 struct UpNextView: View {

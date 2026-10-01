@@ -118,6 +118,8 @@ Conversions run one at a time and must finish before playback, enabling full-fil
 
 A queue snapshots all matching IDs, not just the visible page. Shuffle is a permutation without repeats. Selecting a video starts there and wraps through the rest of the same scope once. At exhaustion the app can offer replay. Deleted/unavailable items produce explicit retry/skip behavior.
 
+App 0.6.0 adds a shortcut: while a video is playing with the playback controls hidden, **double-tap the right edge of the Siri Remote touchpad** to skip to the next video. A single right tap keeps the native seek behavior. When the controls or Up Next are open, rightward input navigates them normally; **Next video** is also available in the playback controls. Skipping the last video ends the selection and offers **Play again**.
+
 ## Apple TV and TestFlight
 
 The dedicated app is **mvideo - music videos**, bundle `com.soundtrackgeek.mvideo`, Apple team `3L5769JKCM`, minimum tvOS 18. Its session lives in Keychain service `com.soundtrackgeek.mvideo`; provider keys never reach the app. The shorter App Store name was already taken. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).

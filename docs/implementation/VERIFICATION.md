@@ -63,6 +63,14 @@ Home chooses a random available background from matched library artists once per
 - The temporary API verification session was revoked after live checks. The delivered browser tab retains its own paired session. Disposable local QA records were removed.
 - Stable Xcode release archive and App Store export succeeded for **0.5.0 (4)**; the IPA passed `codesign --verify --deep --strict`. Upload succeeded at 15:00 Europe/Oslo. Archive and export are in ignored `output/MVideo-0.5.0.xcarchive` and `output/export-0.5.0/MVideo.ipa`.
 
+## 0.6.0 remote skip shortcut
+
+- Added a two-tap right-arrow recognizer to the native player, with priority over the single-tap recognizer. Playback controls, presented menus and focus inside Up Next retain normal navigation. The recognizer is removed with the player and ignores preparation, errors and finished selections.
+- **11 targeted native tests passed, zero failures and zero skips** in the final run on the paired tvOS 26.5 Apple TV 4K simulator using the real Windows library. Coverage includes single-right and double-left inputs retaining the current video, double-right advancing exactly once, rightward navigation with controls open, last-item exhaustion, AVPlayer seeking/automatic next, and library return focus/scroll position.
+- An earlier run timed out on the existing scroll-position restoration assertion; its targeted rerun and the final combined run both passed without changing that behavior or assertion.
+- Final result: `test_sim_2026-10-01T13-33-46-871Z_pid63653_d37875d7.xcresult` in the local XcodeBuildMCP workspace (81.4 seconds). Simulator playback screenshot inspected in ignored `output/double-tap-screenshots/`.
+- App source version is **0.6.0 (5)**. This change has not been uploaded to TestFlight. Automated remote checks synthesize directional presses; light double-tapping on the physical Siri Remote still needs verification.
+
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.

@@ -1,6 +1,54 @@
 import XCTest
 
 final class NavigationTests: XCTestCase {
+    func testDoubleRightTapSkipsExactlyOneVideo() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["MVIDEO_TEST_ARTIST"] = "'Til Tuesday"
+        app.launch()
+        try XCTSkipIf(app.textFields["server-origin"].waitForExistence(timeout: 3), "Pair the simulator with the real library.")
+        let videos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'video-'"))
+        XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 20))
+        XCTAssertGreaterThan(videos.count, 1)
+        let remote = XCUIRemote.shared
+        for _ in 0..<12 {
+            if videos.firstMatch.hasFocus { break }
+            remote.press(.down)
+        }
+        XCTAssertTrue(videos.firstMatch.hasFocus, app.debugDescription)
+        remote.press(.select)
+        let screen = app.otherElements["playback-screen"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 20))
+        expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 1 of'"), evaluatedWith: screen)
+        waitForExpectations(timeout: 40)
+        // AVKit hides its initial transport bar after playback starts.
+        Thread.sleep(forTimeInterval: 8)
+        remote.press(.right)
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true, "A single right tap must not skip a video.")
+        Thread.sleep(forTimeInterval: 8)
+        remote.press(.left)
+        remote.press(.left)
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true, "Double taps on the left must not skip a video.")
+        Thread.sleep(forTimeInterval: 8)
+        remote.press(.right)
+        remote.press(.right)
+        expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 2 of'"), evaluatedWith: screen)
+        waitForExpectations(timeout: 40)
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 2 of") == true)
+        saveScreenshot(app, name: "Double right tap advances exactly one video")
+        remote.press(.playPause)
+        Thread.sleep(forTimeInterval: 1)
+        remote.press(.right)
+        remote.press(.right)
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 2 of") == true, "Rightward navigation with playback controls open must not skip.")
+        remote.press(.playPause)
+        remote.press(.menu)
+        XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 10))
+    }
     func testAutomaticallyMatchedArtistPhotosAndTiles() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
