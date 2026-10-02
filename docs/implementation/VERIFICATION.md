@@ -1,8 +1,8 @@
-# Verification — 2026-10-01
+# Verification — updated 2026-10-02
 
 ## Installed Windows service
 
-The independent mvideo 0.5.0 service is installed at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. Deployed Python source matches this repository.
+The independent mvideo **0.9.1** service uses the Python environment at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. The current package was built from the Windows checkout and installed as a wheel; the older service source directory is no longer the imported editable package.
 
 The **mvideo Library** scheduled task is running as Local Service (`S-1-5-19`) with an `MSFT_TaskBootTrigger`, 30-second startup delay, failure restart and no execution time limit. It requires no interactive login. State/code ACLs and encrypted machine-DPAPI provider loading were installed with owner-approved administrator access. A fresh task launch and HTTPS health response passed. An actual Windows reboot was not performed. Tailscale's Windows service is Automatic.
 
@@ -97,16 +97,23 @@ Home chooses a random available background from matched library artists once per
 - Owner-reported completed analysis on 2026-10-02: **15,541 current measurements, 17 errors, zero pending/stale**, across **15,558** videos. Normalization uses those stored measurements, with original-volume fallback for unusable records.
 - **96 server tests passed**, including 19 new gain/API/first-track cases and a real FFmpeg multi-audio MP4 remux. Source bytes remain unchanged. Authenticated responses supply bounded gain only for matching file/profile/stream measurements.
 - **11 native tests passed** on tvOS 26.5 Simulator using Xcode 26.6: eight existing core tests and three normalization tests. The generated MP4 is served over actual loopback HTTP with byte ranges. The test verifies the real audio tap's positive/negative sample gain, unity when disabled, seeking, automatic next, no inherited gain for an unmeasured item and persisted preferences. An initial assertion raced the silent preroll buffer; the test now waits for actual nonzero source samples. Final result: ignored `output/normalization-native-tests.log` and `output/NormalizationDerivedData/Logs/Test/`.
-- **Four updater PowerShell checks passed** with mocked Task Scheduler/pip/health on macOS: update/restart of a running service, preservation of a stopped service, package-build failure before stopping, and restart after an installation error. A real server wheel built successfully; it includes the normalization module and bundled data. Native Windows deployment remains to be verified separately.
+- **Four updater PowerShell checks passed** with mocked Task Scheduler/pip/health on macOS: update/restart of a running service, preservation of a stopped service, package-build failure before stopping, and restart after an installation error. A real server wheel built successfully; it includes the normalization module and bundled data. Native Windows deployment is recorded below.
 - Release **0.9.0 (6)** archived and distribution-signed/exported successfully. Artifacts: ignored `output/MVideo-0.9.0.xcarchive` and `output/export-0.9.0/MVideo.ipa`. Upload/processing and installed-device behavior are separate checks; see delivery status below.
+
+## 0.9.1 Windows deployment and live verification
+
+- Running the updater in the existing Windows administrator session exposed inherited `PYTHONPATH` from maintenance commands: pip saw the checkout's newly built metadata and incorrectly considered 0.9.0 installed while HTTPS still reported 0.5.0. The updater's health check caught this. Isolated Python (`-I`) and forced wheel reinstallation fixed the environment ambiguity; four updater checks and all 19 normalization server tests passed again.
+- Pulled the fix into `C:\_code\mvideo`, built and installed **0.9.1** in the existing service environment, and restarted the existing scheduled task. Both the updater's loopback check and an independent private HTTPS `/health` request confirmed **0.9.1**. A subsequent Windows loudness status check retained **15,541 measured / 17 errors / zero pending or stale / 15,558 total**.
+- The native real-library playback test passed with zero skips against the updated Windows HTTPS service. It verifies saved gain reaches the actual audio processor, supported PCM and processed frames after seeking, and a fresh normalization processor on automatic next. The paired simulator Keychain session remained usable. This brings current native coverage to **12 distinct passing tests**, including the 11 core/normalization tests above. Evidence: ignored `output/normalization-live-native.log` and `output/NormalizationDerivedData/Logs/Test/Test-MVideo-2026.10.02_12-52-51-+0200.xcresult`.
+- Physical-device listening and comparison across different songs still require owner feedback; simulator audio processing and TestFlight installation do not establish the sound at the television/speakers.
 
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.
 
-Version **0.5.0 (4)** uploaded successfully, completed Apple processing, and is **Testing** in the internal **mvideo testers** group. App Store Connect visibly shows one tester and four builds, including 0.4.1 (3), 0.4.0 (2) and 0.3.0 (1). Release confirmation is saved locally in ignored `output/testflight-0.5.0.jpeg`.
+Version **0.9.0 (6)** uploaded successfully at 12:41 Europe/Oslo on 2026-10-02, completed Apple processing, and was added to the existing internal **mvideo testers** group. Release testing notes were saved. App Store Connect shows one tester and five builds and reports **Installed 0.9.0 (6)** on the tester's **Apple TV 4K / tvOS 26.6**. Release confirmation is saved locally in ignored `output/testflight-0.9.0.jpg`.
 
-The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. The invitation has been accepted: App Store Connect now reports **Installed 0.4.1 (3)** on **Apple TV 4K / tvOS 26.6**. The owner confirmed installation, pairing and working playback, supplied photos of its browsing and player UI, and reported missing artist photography after updating. The 0.5.0 playlists update and the 0.4.1 automatic artwork correction still need behavior verification on that physical device.
+The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. The invitation was accepted previously. The owner confirmed earlier installation, pairing and working playback, supplied photos of its browsing and player UI, and reported missing artist photography after updating. The current installation is confirmed above; normalization and other recent features still need owner behavior/listening feedback on the physical device.
 
 Latest local distribution artifacts: ignored `output/MVideo-0.5.0.xcarchive` and `output/export-0.5.0/MVideo.ipa`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
 
@@ -127,16 +134,16 @@ Sources checked 2026-10-01:
 
 | Gate | Status |
 | --- | --- |
-| Full real Windows catalog/probes | 15,559 complete; zero pending/inaccessible |
+| Full real Windows catalog/probes | 15,558 after naming cleanup; 15,541 loudness measurements, 17 analysis errors, zero pending/stale |
 | Boot service configuration and fresh task launch | Verified Local Service, no login; actual reboot untested |
 | Private HTTPS and pairing | Verified Windows route and native Keychain |
 | Representative seven-format playback and seeking | Passed through Windows HTTPS; originals unchanged |
 | Live Last.fm/fanart.tv and random home image | Verified for three manual identities; automatic fanart.tv matching and image bytes verified for five more artists |
-| tvOS simulator build/navigation/playback | Eleven targeted 0.5.0 tests passed in final runs; initial unsigned Keychain skip resolved |
-| Physical Apple TV | Owner-confirmed pairing and basic playback; 0.4.1 installed on Apple TV 4K / tvOS 26.6; generation, artwork correction and 0.5.0 playlists still need device verification |
+| tvOS simulator build/navigation/playback | Twelve current core/normalization/live-playback tests passed; earlier navigation checks recorded above |
+| Physical Apple TV | Owner-confirmed earlier pairing/basic playback; 0.9.0 (6) installed on Apple TV 4K / tvOS 26.6; normalization listening still needs feedback |
 | Signing/archive/export/upload | Passed; dedicated identity |
 | Apple processing | Complete |
-| TestFlight build/group | 0.5.0 (4) Testing; one tester/four builds |
-| Requested invitation | jtillnes2@yahoo.com accepted; 0.4.1 installation confirmed by App Store Connect |
+| TestFlight build/group | 0.9.0 (6) assigned; one tester/five builds; installation confirmed |
+| Requested invitation | jtillnes2@yahoo.com accepted; 0.9.0 installation confirmed by App Store Connect |
 
-Remaining physical-device checks: update to 0.5.0 and verify shared playlist browsing/playback, updated image tiles and photo navigation, representative audio/aspect/seek, continuous transitions and return focus. A future reboot should also confirm the configured boot trigger in practice.
+Remaining physical-device checks: compare normalization on/off across songs, including quiet and loud sources, seeking and continuous transitions. Shared playlists, artwork and double-right skip should also be confirmed on the physical remote. A future reboot should confirm the configured boot trigger in practice.

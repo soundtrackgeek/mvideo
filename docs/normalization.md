@@ -32,7 +32,7 @@ git pull --ff-only
 
 This builds a wheel before stopping the running task, installs only the server package into the configured service Python, restarts a previously running task even if installation reports an error, and verifies the running version through loopback `/health`. A task already stopped is left stopped. The database, loudness data, provider configuration and source media are retained. The package replaces an editable installation if one was used; subsequent updates should use this updater again. The service's older source checkout is not overwritten.
 
-Install Apple TV **0.9.0 (6)** through TestFlight once available. Reopen playback to receive the new response and activate normalization. No repeat analysis is required for the 15,541 valid measurements. For A/B listening, use Normalize volume in the player controls; the 17 error records continue at original volume until successfully remeasured.
+Apple TV **0.9.0 (6)** is available through the existing TestFlight group. The production Windows service was updated to **0.9.1** on 2026-10-02 and retained all measurements. Reopen playback to receive the new response and activate normalization. No repeat analysis is required for the 15,541 valid measurements. For A/B listening, use Normalize volume in the player controls; the 17 error records continue at original volume until successfully remeasured.
 
 ## Verification
 

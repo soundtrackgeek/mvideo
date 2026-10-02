@@ -11,7 +11,10 @@ final class PlaybackIntegrationTests: XCTestCase {
         let page = try await api.videos(scope: Scope(artist: "'Til Tuesday"))
         try XCTSkipUnless(page.items.count >= 2, "Real-library sample artist is unavailable.")
         let ids = Array(page.items.prefix(2).map(\.id))
-        let model = PlayerModel(api: api, ids: ids, title: "Integration verification")
+        let preferenceDomain = "live-playback-" + UUID().uuidString
+        let preferences = try XCTUnwrap(UserDefaults(suiteName: preferenceDomain))
+        defer { preferences.removePersistentDomain(forName: preferenceDomain) }
+        let model = PlayerModel(api: api, ids: ids, title: "Integration verification", preferences: preferences)
         defer { model.stop() }
         model.start()
         for _ in 0..<120 {
@@ -36,6 +39,13 @@ final class PlaybackIntegrationTests: XCTestCase {
         let start = model.player.currentTime().seconds
         try await Task.sleep(for: .seconds(2))
         XCTAssertGreaterThan(model.player.currentTime().seconds, start + 0.5)
+        let prepared: PlaybackResponse = try await api.request("/api/playback/" + ids[0], method: "POST")
+        let expectedGain = try XCTUnwrap(prepared.normalization?.gain, "The live sample requires a valid stored measurement.")
+        let processor = try XCTUnwrap(model.normalization?.processor)
+        XCTAssertEqual(processor.gain, expectedGain, accuracy: 0.00001)
+        XCTAssertTrue(processor.supported.load(ordering: .relaxed))
+        XCTAssertGreaterThan(processor.processedFrames.load(ordering: .relaxed), 0)
+        XCTAssertNotNil(item.audioMix)
         let soughtEnd = await model.player.seek(to: CMTime(seconds: duration - 0.4, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
         XCTAssertTrue(soughtEnd)
         model.player.play()
@@ -47,5 +57,6 @@ final class PlaybackIntegrationTests: XCTestCase {
         XCTAssertEqual(model.current?.id, ids[1])
         XCTAssertNil(model.error)
         XCTAssertEqual(model.player.currentItem?.status, .readyToPlay)
+        XCTAssertNotNil(model.normalization, "Automatic next must install the next video's normalization.")
     }
 }

@@ -6,6 +6,7 @@
 
 - Isolate the Windows service updater from inherited Python settings after a loudness scan, so checkout metadata cannot make pip incorrectly skip the installed service update. Reinstall the built wheel even when its version matches.
 - Server package version is 0.9.1; the compatible Apple TV release remains 0.9.0 (6).
+- Live Windows playback verification now requires the saved gain to reach the native audio processor through seeking and automatic next.
 
 ## [0.9.0] - 2026-10-02
 
