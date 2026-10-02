@@ -107,6 +107,14 @@ Home chooses a random available background from matched library artists once per
 - The native real-library playback test passed with zero skips against the updated Windows HTTPS service. It verifies saved gain reaches the actual audio processor, supported PCM and processed frames after seeking, and a fresh normalization processor on automatic next. The paired simulator Keychain session remained usable. This brings current native coverage to **12 distinct passing tests**, including the 11 core/normalization tests above. Evidence: ignored `output/normalization-live-native.log` and `output/NormalizationDerivedData/Logs/Test/Test-MVideo-2026.10.02_12-52-51-+0200.xcresult`.
 - Physical-device listening and comparison across different songs still require owner feedback; simulator audio processing and TestFlight installation do not establish the sound at the television/speakers.
 
+## 0.10.0 artist navigation and picture-in-picture
+
+- The library owns one playback session across full-screen playback, the in-app floating player and native system PiP. **Go to artist** opens the current artist without replacing the AVPlayer, item or queue; videos without an artist omit the action.
+- **19 model/playback tests** cover HTTP audio continuity through artist navigation and restoration, normalization, seeking, automatic next, changed artists, native PiP restore versus close, failed PiP startup, stale callbacks and Menu dismissal. The optional live Windows-library seek/automatic-next test ran and passed.
+- **Four remote UI tests** cover the artist action and floating player, Back/full-screen return, original focus and scroll position, double-right skip, and playlist playback. The artist test resumes playback before navigating. Reference scroll positions are captured after tvOS finishes its focus animation.
+- Debug simulator and unsigned Release device builds pass with Xcode 26.6. Built app metadata is **0.10.0 (7)** and includes the `audio` background mode. Local evidence is in ignored `output/pip-verified.xcresult`, `output/pip-verified.log` and `output/pip-release-verified.log`.
+- Native PiP callbacks are regression-tested, but the actual system PiP window and background/restore/queue transitions still require a physical Apple TV. Use [Apple's standard-player PiP guidance](https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-in-a-standard-player) for device verification. No TestFlight upload or Windows service update is included in this source change.
+
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.
@@ -139,7 +147,7 @@ Sources checked 2026-10-01:
 | Private HTTPS and pairing | Verified Windows route and native Keychain |
 | Representative seven-format playback and seeking | Passed through Windows HTTPS; originals unchanged |
 | Live Last.fm/fanart.tv and random home image | Verified for three manual identities; automatic fanart.tv matching and image bytes verified for five more artists |
-| tvOS simulator build/navigation/playback | Twelve current core/normalization/live-playback tests passed; earlier navigation checks recorded above |
+| tvOS simulator build/navigation/playback | Nineteen model/playback tests and four remote UI tests passed for 0.10.0; native system PiP needs physical-device verification |
 | Physical Apple TV | Owner-confirmed earlier pairing/basic playback; 0.9.0 (6) installed on Apple TV 4K / tvOS 26.6; normalization listening still needs feedback |
 | Signing/archive/export/upload | Passed; dedicated identity |
 | Apple processing | Complete |

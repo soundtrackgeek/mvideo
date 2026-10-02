@@ -12,6 +12,57 @@ struct QueueCursor: Equatable {
     mutating func restart() { index = 0 }
     mutating func move(to value: Int) { if ids.indices.contains(value) { index = value } }
 }
+
+// The library owns playback so navigation never replaces the player or its item.
+@MainActor @Observable final class PlaybackSession {
+    enum Presentation { case fullScreen, miniPlayer, systemPictureInPicture }
+    private(set) var model: PlayerModel?
+    private(set) var presentation = Presentation.fullScreen
+    private(set) var dismissalCount = 0
+    var artistToOpen: String?
+    var pictureInPictureError: String?
+    var isFullScreen: Bool { model != nil && presentation == .fullScreen }
+
+    func play(_ model: PlayerModel) {
+        self.model?.stop()
+        self.model = model
+        presentation = .fullScreen
+        artistToOpen = nil
+        pictureInPictureError = nil
+        model.start()
+    }
+    func minimize() {
+        guard model != nil else { return }
+        presentation = .miniPlayer
+        dismissalCount += 1
+    }
+    func showArtist() {
+        guard let artist = model?.currentArtist else { return }
+        artistToOpen = artist
+        if presentation == .fullScreen { presentation = .miniPlayer }
+    }
+    func restore() {
+        guard model != nil else { return }
+        presentation = .fullScreen
+    }
+    func didStartPictureInPicture() {
+        guard model != nil else { return }
+        presentation = .systemPictureInPicture
+        dismissalCount += 1
+    }
+    func didStopPictureInPicture() {
+        // Restoration changes presentation first. Closing the system window ends playback.
+        if presentation == .systemPictureInPicture { stop() }
+    }
+    func stop() {
+        model?.stop()
+        model = nil
+        artistToOpen = nil
+        presentation = .fullScreen
+        dismissalCount += 1
+    }
+}
+
 @MainActor @Observable final class PlayerModel {
     let api: API
     let title: String
@@ -23,6 +74,10 @@ struct QueueCursor: Equatable {
     var error: String?
     var finished = false
     var upNext: [Video] = []
+    var currentArtist: String? {
+        guard let artist = current?.artist?.trimmingCharacters(in: .whitespacesAndNewlines), !artist.isEmpty else { return nil }
+        return artist
+    }
     private(set) var normalizationEnabled: Bool
     private(set) var normalizationMessage = "Original volume"
     private(set) var normalization: AudioNormalization?
@@ -43,11 +98,13 @@ struct QueueCursor: Equatable {
         loadTask?.cancel(); previewTask?.cancel(); normalizationTask?.cancel(); clearObservers()
         loadID = UUID()
         let generation = loadID
-        player.pause(); player.replaceCurrentItem(with: nil)
+        // Retain the outgoing item while preparing its successor so system PiP
+        // is not torn down by a transient empty player between queue entries.
+        player.pause()
         normalization = nil
         normalizationMessage = "Original volume"
         error = nil; current = nil; upNext = []; preparing = true; finished = queue.current == nil
-        guard let id = queue.current else { preparing = false; return }
+        guard let id = queue.current else { player.replaceCurrentItem(with: nil); preparing = false; return }
         let index = queue.index
         loadTask = Task { [weak self] in
             guard let self else { return }
@@ -173,42 +230,117 @@ struct QueueCursor: Equatable {
     }
 }
 struct PlaybackScreen: View {
-    @Bindable var model: PlayerModel
-    @Environment(\.dismiss) private var dismiss
+    let model: PlayerModel
+    let session: PlaybackSession
+    var browseBack: (() -> Void)?
+    @FocusState private var expandFocused: Bool
+    private var fullScreen: Bool { session.presentation == .fullScreen }
+    private var systemPictureInPicture: Bool { session.presentation == .systemPictureInPicture }
     var body: some View {
-        ZStack {
-            NativePlayer(model: model).ignoresSafeArea()
-            if model.preparing || model.error != nil || model.finished {
-                Color.black.opacity(0.85).ignoresSafeArea()
-                VStack(spacing: 24) {
-                    Text(model.finished ? "That was your selection." : model.current?.playbackTitle ?? model.title).font(.title.bold())
-                    if model.preparing { ProgressView(model.message) }
-                    if let error = model.error { Text(error).multilineTextAlignment(.center).frame(maxWidth: 950) }
-                    if model.finished {
-                        Text("Every video has had its turn.").foregroundStyle(Theme.secondary)
-                        Button("Play again") { model.replay() }.buttonStyle(PillStyle())
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                ZStack {
+                    // Keep this representable in the same structural position when resizing.
+                    NativePlayer(model: model, session: session)
+                        .allowsHitTesting(fullScreen)
+                        .accessibilityHidden(!fullScreen)
+                    if fullScreen && (model.preparing || model.error != nil || model.finished) {
+                        playbackStatus
                     }
-                    HStack(spacing: 25) {
-                        if model.error != nil { Button("Retry") { model.start() }.buttonStyle(PillStyle()) }
-                        if model.queue.hasNext { Button("Skip video") { model.next() }.buttonStyle(PillStyle()) }
-                        Button("Back to library") { dismiss() }.buttonStyle(PillStyle())
-                    }
-                }.foregroundStyle(Theme.ivory)
+                }
+                .frame(height: fullScreen ? geometry.size.height : 292.5)
+                .opacity(systemPictureInPicture ? 0 : 1)
+                .frame(height: systemPictureInPicture ? 0 : nil)
+                .clipped()
+                if !fullScreen { miniPlayerControls }
             }
-        }.accessibilityIdentifier("playback-screen")
-            .accessibilityValue(model.finished ? "Selection finished" : "\(model.preparing ? "Preparing video" : "Video") \(model.queue.index + 1) of \(model.queue.ids.count)")
-            .onExitCommand { dismiss() }
-            .task { model.start() }.onDisappear { model.stop() }
+            .frame(width: fullScreen ? geometry.size.width : 520)
+            .background(.black)
+            .clipShape(RoundedRectangle(cornerRadius: fullScreen ? 0 : 16))
+            .overlay(RoundedRectangle(cornerRadius: fullScreen ? 0 : 16)
+                .strokeBorder(fullScreen ? .clear : Theme.secondary.opacity(0.5), lineWidth: 1))
+            .padding(fullScreen ? 0 : 45)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        }
+        .ignoresSafeArea()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(fullScreen ? "playback-screen" : "mini-player")
+        .accessibilityValue(model.finished ? "Selection finished" : "\(model.preparing ? "Preparing video" : "Video") \(model.queue.index + 1) of \(model.queue.ids.count)")
+        .onExitCommand(perform: fullScreen ? { session.stop() } : browseBack)
+        .onChange(of: fullScreen) { _, fullScreen in
+            if !fullScreen && !systemPictureInPicture { expandFocused = true }
+        }
+    }
+    private var playbackStatus: some View {
+        ZStack {
+            Color.black.opacity(0.85)
+            VStack(spacing: 24) {
+                Text(model.finished ? "That was your selection." : model.current?.playbackTitle ?? model.title).font(.title.bold())
+                if model.preparing { ProgressView(model.message) }
+                if let error = model.error { Text(error).multilineTextAlignment(.center).frame(maxWidth: 950) }
+                if model.finished {
+                    Text("Every video has had its turn.").foregroundStyle(Theme.secondary)
+                    Button("Play again") { model.replay() }.buttonStyle(PillStyle())
+                }
+                HStack(spacing: 25) {
+                    if model.error != nil { Button("Retry") { model.start() }.buttonStyle(PillStyle()) }
+                    if model.queue.hasNext { Button("Skip video") { model.next() }.buttonStyle(PillStyle()) }
+                    Button("Back to library") { session.stop() }.buttonStyle(PillStyle())
+                }
+            }.foregroundStyle(Theme.ivory)
+        }
+    }
+    private var miniPlayerControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(model.current?.playbackTitle ?? model.title).font(.system(size: 22, weight: .semibold)).lineLimit(2)
+            if model.finished || model.error != nil || model.preparing {
+                Text(model.finished ? "Selection finished" : model.error ?? model.message)
+                    .font(.system(size: 18)).foregroundStyle(Theme.secondary).lineLimit(2)
+            } else if systemPictureInPicture {
+                Text("Playing in Picture in Picture").font(.system(size: 18)).foregroundStyle(Theme.secondary)
+            }
+            if model.error != nil || model.finished {
+                HStack {
+                    if model.finished { Button("Play again") { model.replay() } }
+                    if model.error != nil { Button("Retry") { model.start() } }
+                    if model.queue.hasNext { Button("Skip video") { model.next() } }
+                }.buttonStyle(NavigationStyle())
+            }
+            HStack(spacing: 16) {
+                if !systemPictureInPicture {
+                    Button { session.restore() } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
+                        .focused($expandFocused)
+                        .accessibilityLabel("Return to full screen").accessibilityIdentifier("mini-player-expand")
+                    Button {
+                        if model.player.rate == 0 { model.player.play() } else { model.player.pause() }
+                    } label: { Image(systemName: "playpause.fill") }
+                        .disabled(model.preparing || model.finished || model.error != nil)
+                        .accessibilityLabel("Play or pause").accessibilityIdentifier("mini-player-play-pause")
+                }
+                if model.currentArtist != nil {
+                    Button { session.showArtist() } label: { Image(systemName: "person.crop.rectangle") }
+                        .accessibilityLabel("Go to artist").accessibilityIdentifier("mini-player-artist")
+                }
+                Button { session.stop() } label: { Image(systemName: "xmark") }
+                    .accessibilityLabel("Stop playback").accessibilityIdentifier("mini-player-stop")
+            }.buttonStyle(NavigationStyle())
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundStyle(Theme.ivory)
+        .focusSection()
     }
 }
 struct NativePlayer: UIViewControllerRepresentable {
     let model: PlayerModel
-    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
+    let session: PlaybackSession
+    func makeCoordinator() -> Coordinator { Coordinator(model: model, session: session) }
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = model.player
         controller.videoGravity = .resizeAspect
         controller.showsPlaybackControls = true
+        controller.allowsPictureInPicturePlayback = true
         controller.delegate = context.coordinator
         context.coordinator.controller = controller
         controller.view.addGestureRecognizer(context.coordinator.skipGesture)
@@ -216,8 +348,17 @@ struct NativePlayer: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
         context.coordinator.model = model
-        context.coordinator.skipGesture.isEnabled = !model.preparing && model.error == nil && !model.finished
-        controller.transportBarCustomMenuItems = [
+        let fullScreen = session.presentation == .fullScreen
+        controller.showsPlaybackControls = fullScreen
+        controller.view.isUserInteractionEnabled = fullScreen
+        context.coordinator.updateFocus(fullScreen: fullScreen)
+        context.coordinator.skipGesture.isEnabled = fullScreen && !model.preparing && model.error == nil && !model.finished
+        var actions: [UIMenuElement] = []
+        if model.currentArtist != nil {
+            actions.append(UIAction(title: "Go to artist", image: UIImage(systemName: "person.crop.rectangle")) { _ in session.showArtist() })
+        }
+        actions.append(UIAction(title: "Browse in mini player", image: UIImage(systemName: "pip.enter")) { _ in session.minimize() })
+        controller.transportBarCustomMenuItems = actions + [
             UIAction(title: "Normalize volume", image: UIImage(systemName: "waveform"),
                      state: model.normalizationEnabled ? .on : .off) { _ in model.toggleNormalization() },
             UIAction(title: "Previous video", image: UIImage(systemName: "backward.end.fill")) { _ in model.previous() },
@@ -235,8 +376,23 @@ struct NativePlayer: UIViewControllerRepresentable {
     }
     final class Coordinator: NSObject, UIGestureRecognizerDelegate, AVPlayerViewControllerDelegate {
         var model: PlayerModel
+        let session: PlaybackSession
         weak var controller: AVPlayerViewController?
         private var transportBarVisible = false
+        private var pictureInPictureStarting = false
+        private var wasFullScreen = false
+        func updateFocus(fullScreen: Bool) {
+            defer { wasFullScreen = fullScreen }
+            guard fullScreen && !wasFullScreen else { return }
+            // An overlay has no presentation transition to transfer focus from
+            // the disabled library. Ask its containing focus environment instead.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.session.model === self.model, self.session.isFullScreen,
+                      let root = self.controller?.view.window?.rootViewController else { return }
+                root.setNeedsFocusUpdate()
+                root.updateFocusIfNeeded()
+            }
+        }
         lazy var skipGesture: UITapGestureRecognizer = {
             let gesture = UITapGestureRecognizer(target: self, action: #selector(skipVideo(_:)))
             gesture.name = "Double tap right to skip video"
@@ -248,10 +404,10 @@ struct NativePlayer: UIViewControllerRepresentable {
             gesture.delegate = self
             return gesture
         }()
-        init(model: PlayerModel) { self.model = model }
+        init(model: PlayerModel, session: PlaybackSession) { self.model = model; self.session = session }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive press: UIPress) -> Bool {
             // Leave rapid rightward navigation in the transport bar and Up Next alone.
-            guard !transportBarVisible, !model.preparing, model.error == nil, !model.finished,
+            guard session.isFullScreen, !transportBarVisible, !model.preparing, model.error == nil, !model.finished,
                   controller?.presentedViewController == nil else { return false }
             if let controller, let focusedView = UIFocusSystem.focusSystem(for: controller)?.focusedItem as? UIView,
                controller.customInfoViewControllers.contains(where: { info in
@@ -266,6 +422,40 @@ struct NativePlayer: UIViewControllerRepresentable {
         }
         func playerViewController(_ playerViewController: AVPlayerViewController, willTransitionToVisibilityOfTransportBar visible: Bool, with coordinator: AVPlayerViewControllerAnimationCoordinator) {
             transportBarVisible = visible
+        }
+        func playerViewControllerShouldDismiss(_ playerViewController: AVPlayerViewController) -> Bool {
+            // AVKit cannot dismiss an embedded controller itself. Menu still
+            // ends full-screen playback through the owning library session.
+            if session.model === model && session.isFullScreen && !pictureInPictureStarting { session.stop() }
+            return false
+        }
+        func playerViewControllerWillStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            pictureInPictureStarting = true
+        }
+        func playerViewControllerShouldAutomaticallyDismissAtPictureInPictureStart(_ playerViewController: AVPlayerViewController) -> Bool { false }
+        func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            pictureInPictureStarting = false
+            guard session.model === model else { return }
+            session.didStartPictureInPicture()
+        }
+        func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            guard session.model === model else { return }
+            session.didStopPictureInPicture()
+        }
+        func playerViewController(_ playerViewController: AVPlayerViewController, failedToStartPictureInPictureWithError error: Error) {
+            pictureInPictureStarting = false
+            guard session.model === model else { return }
+            session.pictureInPictureError = "Your video is still playing. Try again, or use Browse in mini player to keep watching inside mvideo."
+        }
+        func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
+            guard session.model === model else { completionHandler(false); return }
+            session.restore()
+            // Let SwiftUI restore the retained controller's full-screen bounds first.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.session.model === self.model else { completionHandler(false); return }
+                playerViewController.view.superview?.layoutIfNeeded()
+                completionHandler(true)
+            }
         }
         @objc func skipVideo(_ gesture: UITapGestureRecognizer) {
             guard gesture.state == .ended, !model.preparing, model.error == nil, !model.finished else { return }

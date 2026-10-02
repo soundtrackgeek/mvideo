@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0] - 2026-10-02
+
+### Added
+
+- **Go to artist** in Apple TV playback controls opens the current artist’s page while the video continues in a floating player. **Browse in mini player** keeps playback running while exploring the library.
+- Floating playback controls for full-screen return, play/pause, current artist and stop; the player, queue, position and volume normalization survive navigation.
+- Native tvOS Picture in Picture lifecycle support, restoration, close handling and background audio capability.
+- Regression coverage for playback continuity, artist changes, PiP restoration/closure and stale callbacks, plus remote navigation coverage.
+
+### Changed
+
+- Playback belongs to the library session rather than an individual browsing page. Queue transitions retain the outgoing player item while preparing its successor.
+- tvOS source version is 0.10.0, build 7. The Windows service is unchanged; TestFlight delivery and physical-device native PiP verification remain separate steps.
+
 ## [0.9.2] - 2026-10-02
 
 ### Added

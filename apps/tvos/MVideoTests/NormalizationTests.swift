@@ -129,13 +129,15 @@ final class NormalizationTests: XCTestCase {
 
 /// Disposable loopback fixture, including byte ranges for AVPlayer seeks. It serves
 /// generated media only and never accesses the user's library or paired session.
-private final class FixtureServer {
+final class FixtureServer {
     private let listener: NWListener
     private let queue = DispatchQueue(label: "normalization-http-test")
     private let media: Data
+    private let artists: [String: String]
     private var connections: [NWConnection] = []
-    init(media: Data) throws {
+    init(media: Data, artists: [String: String] = [:]) throws {
         self.media = media
+        self.artists = artists
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
         listener = try NWListener(using: parameters)
@@ -191,7 +193,7 @@ private final class FixtureServer {
         if path.hasPrefix("/api/") {
             let object: [String: Any]
             if path.hasPrefix("/api/videos/") {
-                object = ["id": id, "artist": "Test", "title": id, "year": 2000, "warnings": []]
+                object = ["id": id, "artist": artists[id] ?? "Test", "title": id, "year": 2000, "warnings": []]
             } else {
                 let normalization: [String: Any] = id == "unmeasured"
                     ? ["state": "unavailable", "profile": "track-gain-v1", "reason": "error"]

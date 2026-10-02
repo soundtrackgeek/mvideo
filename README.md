@@ -2,7 +2,7 @@
 
 A native Apple TV music video app backed by an independent Windows library and streaming service. The five [approved designs](docs/design/README.md) guide the charcoal, warm-white and amber interface. The collection spans every era present in the files.
 
-The Windows service and native tvOS app are implemented. The app supports shared playlists with a browser editor, artist/title/year search, artist biographies and fanart.tv photography, year/decade browsing, full-selection shuffle, continuous playback, queue controls and return to the previous focused video and scroll position. Home chooses a random fanart.tv background from verified artists in the library at launch, keeps it stable while browsing, and falls back to a video thumbnail.
+The Windows service and native tvOS app are implemented. The app supports shared playlists with a browser editor, artist/title/year search, artist biographies and fanart.tv photography, year/decade browsing, full-selection shuffle, continuous playback, picture-in-picture, artist navigation during playback, queue controls and return to the previous focused video and scroll position. Home chooses a random fanart.tv background from verified artists in the library at launch, keeps it stable while browsing, and falls back to a video thumbnail.
 
 Artist tiles and pages automatically look up fanart.tv photography as you browse. The server matches artists against MusicBrainz recording credits using songs in your library, then caches their photos. Tiles replace temporary video stills when photos arrive; unmatched artists or missing provider photos keep the fallback. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
 
@@ -266,6 +266,14 @@ Conversions run one at a time and must finish before playback, enabling full-fil
 A queue snapshots all matching IDs, not just the visible page. Shuffle is a permutation without repeats. Selecting a video starts there and wraps through the rest of the same scope once. At exhaustion the app can offer replay. Deleted/unavailable items produce explicit retry/skip behavior.
 
 App 0.6.0 adds a shortcut: while a video is playing with the playback controls hidden, **double-tap the right edge of the Siri Remote touchpad** to skip to the next video. A single right tap keeps the native seek behavior. When the controls or Up Next are open, rightward input navigates them normally; **Next video** is also available in the playback controls. Skipping the last video ends the selection and offers **Play again**.
+
+### Browse while watching
+
+App **0.10.0 (7)** adds **Go to artist** to the video playback controls. Select it to open the currently playing artist’s page with the same video continuing in a floating player at the bottom right. The action is available when the video has an artist name. **Browse in mini player** returns to the current browsing page without changing the queue. Automatic next and volume normalization continue while you explore.
+
+The floating player has **Return to full screen**, **Play or pause**, **Go to artist** and **Stop playback** controls. Returning to full screen preserves your position. Back/Menu navigates the library while the floating player is open; in full-screen playback it closes the selection. Selecting another video or starting Play all/Shuffle replaces the current queue.
+
+Apple TV’s native **Picture in Picture** control is also supported on compatible devices. Use the system PiP controls to move the window, return to full screen or close it; closing it stops playback. While native PiP is active, mvideo also offers **Go to artist** and **Stop playback**. Native PiP availability and its system transitions require verification on a physical Apple TV. The one-step artist action uses mvideo’s in-app floating player. This source release does not update the installed TestFlight build by itself.
 
 ## Apple TV and TestFlight
 

@@ -8,6 +8,7 @@ struct LibraryShell: View {
     @State private var showConnection = false
     @State private var featured: FeaturedArtwork?
     @State private var requestedArtwork = false
+    @State private var playback = PlaybackSession()
     private let tabs: [(String, Page)] = [("Home", .home), ("Search", .search), ("Playlists", .playlists), ("Artists", .artists), ("Years", .years), ("Decades", .decades)]
     var body: some View {
         NavigationStack(path: $path) {
@@ -25,12 +26,37 @@ struct LibraryShell: View {
                     Spacer()
                     Button { showConnection = true } label: { Image(systemName: "network") }.buttonStyle(NavigationStyle()).accessibilityLabel("Connection")
                 }.padding(.horizontal, 70).padding(.top, 35).padding(.bottom, 15).focusSection()
-                BrowseScreen(api: api, page: tab, featured: featured).id(tab)
+                BrowseScreen(api: api, page: tab, featured: featured, isCurrentPage: path.isEmpty).id(tab)
             }
-            .navigationDestination(for: Page.self) { page in BrowseScreen(api: api, page: page) }
+            .navigationDestination(for: Page.self) { page in BrowseScreen(api: api, page: page, isCurrentPage: path.last == page) }
             .background(Theme.background)
         }
         .foregroundStyle(Theme.ivory)
+        .environment(playback)
+        .disabled(playback.isFullScreen)
+        .accessibilityHidden(playback.isFullScreen)
+        .overlay(alignment: .bottomTrailing) {
+            if let model = playback.model {
+                PlaybackScreen(model: model, session: playback, browseBack: path.isEmpty ? nil : {
+                    if !path.isEmpty { path.removeLast() }
+                })
+                    .id(ObjectIdentifier(model))
+            }
+        }
+        .onChange(of: playback.artistToOpen) { _, artist in
+            guard let artist else { return }
+            let destination = Page.artist(artist)
+            if path.last != destination { path.append(destination) }
+            playback.artistToOpen = nil
+        }
+        .alert("Picture in Picture unavailable", isPresented: Binding(
+            get: { playback.pictureInPictureError != nil },
+            set: { if !$0 { playback.pictureInPictureError = nil } }
+        )) {
+            Button("OK") { playback.pictureInPictureError = nil }
+        } message: {
+            Text(playback.pictureInPictureError ?? "")
+        }
         .task {
             guard !requestedArtwork else { return }
             requestedArtwork = true
@@ -46,7 +72,7 @@ struct LibraryShell: View {
                 Text("Your library connection").font(.title.bold())
                 Text(api.connection.origin.absoluteString).foregroundStyle(Theme.secondary)
                 Text("The PC and this Apple TV need an active Tailscale connection.")
-                Button("Disconnect and pair again") { Task { await session.disconnect(); showConnection = false } }.buttonStyle(PillStyle())
+                Button("Disconnect and pair again") { playback.stop(); Task { await session.disconnect(); showConnection = false } }.buttonStyle(PillStyle())
                 Button("Close") { showConnection = false }.buttonStyle(PillStyle())
             }.padding(70)
         }
@@ -126,11 +152,11 @@ struct BrowseScreen: View {
     let api: API
     let page: Page
     var featured: FeaturedArtwork? = nil
+    var isCurrentPage = true
     @State private var model = BrowseModel()
     @State private var query = ""
     @State private var searchField = "all"
-    @State private var player: PlayerModel?
-    @State private var showingPlayer = false
+    @Environment(PlaybackSession.self) private var playback
     @State private var showingBiography = false
     @State private var gallery: ArtistPhotoSelection?
     @State private var launching = false
@@ -180,11 +206,13 @@ struct BrowseScreen: View {
             }
             .background(Theme.background)
             .scrollPosition($scrollPosition)
-            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, offset in scrollOffset = offset }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in scrollOffset = offset }
             .onChange(of: restoreCounter) {
-                if let returnFocus {
-                    // The focus engine may scroll as the cover closes. Restore the saved offset after that update.
+                if isCurrentPage, let returnFocus {
+                    // Wait for the playback overlay to release focus and re-enable
+                    // browsing, then restore the offset after the focus engine scrolls.
                     Task {
+                        try? await Task.sleep(for: .milliseconds(100))
                         focus = returnFocus
                         try? await Task.sleep(for: .milliseconds(350))
                         scrollPosition.scrollTo(y: returnOffset)
@@ -199,12 +227,13 @@ struct BrowseScreen: View {
             await model.load(api: api, page: page, scope: scope)
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active && (page == .playlists || scope.playlist != nil) && !showingPlayer { reload() }
+            if phase == .active && (page == .playlists || scope.playlist != nil) && !playback.isFullScreen { reload() }
         }
-        .fullScreenCover(isPresented: $showingPlayer, onDismiss: {
-            player?.stop(); player = nil; restoreCounter += 1
-        }) {
-            if let player { PlaybackScreen(model: player) }
+        .onChange(of: playback.dismissalCount) {
+            if isCurrentPage { restoreCounter += 1 }
+        }
+        .onChange(of: playback.isFullScreen) { _, fullScreen in
+            if fullScreen { focus = nil }
         }
         .sheet(isPresented: $showingBiography) { biography }
         .fullScreenCover(item: $gallery, onDismiss: { restoreCounter += 1 }) { selection in
@@ -421,8 +450,7 @@ struct BrowseScreen: View {
             do {
                 let queue = try await api.queue(scope: scope, shuffle: shuffle, start: start)
                 guard !queue.ids.isEmpty else { throw ServiceError.message("This selection is empty. Refresh the library and try again.") }
-                player = PlayerModel(api: api, ids: queue.ids, title: page == .home ? "Your collection" : page.title)
-                showingPlayer = true
+                playback.play(PlayerModel(api: api, ids: queue.ids, title: page == .home ? "Your collection" : page.title))
             } catch { playbackError = error.localizedDescription }
             launching = false
         }

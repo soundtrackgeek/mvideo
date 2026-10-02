@@ -8,8 +8,8 @@ settings:
     SWIFT_VERSION: '5.0'
     DEVELOPMENT_TEAM: 3L5769JKCM
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: 0.9.0
-    CURRENT_PROJECT_VERSION: 6
+    MARKETING_VERSION: 0.10.0
+    CURRENT_PROJECT_VERSION: 7
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     TARGETED_DEVICE_FAMILY: '3'
 targets:
@@ -17,6 +17,12 @@ targets:
     type: application
     platform: tvOS
     sources: [MVideo]
+    info:
+      path: MVideo/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIBackgroundModes: [audio]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.soundtrackgeek.mvideo

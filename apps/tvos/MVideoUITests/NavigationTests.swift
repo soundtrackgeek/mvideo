@@ -1,6 +1,60 @@
 import XCTest
 
 final class NavigationTests: XCTestCase {
+    func testGoToArtistKeepsFloatingPlaybackAndRestoresFullScreen() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        try XCTSkipUnless(app.buttons["nav-home"].waitForExistence(timeout: 10), "Pair the simulator with the running library.")
+        let remote = XCUIRemote.shared
+        let videos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'video-'"))
+        XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 20))
+        for _ in 0..<12 {
+            if videos.firstMatch.hasFocus { break }
+            remote.press(.down)
+        }
+        XCTAssertTrue(videos.firstMatch.hasFocus, app.debugDescription)
+        remote.press(.select)
+        let screen = app.otherElements["playback-screen"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 20))
+        expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 1 of'"), evaluatedWith: screen)
+        waitForExpectations(timeout: 40)
+        remote.press(.playPause)
+        let artistAction = app.cells["Go to artist"]
+        XCTAssertTrue(artistAction.waitForExistence(timeout: 5), app.debugDescription)
+        let transportActions = ["Go to artist", "Browse in mini player", "Normalize volume", "Previous video", "Next video", "Audio"]
+        let focusedAction = app.cells.matching(NSPredicate(format: "hasFocus == true AND label IN %@", transportActions)).firstMatch
+        for _ in 0..<3 where !focusedAction.exists { remote.press(.up) }
+        for _ in 0..<8 where !artistAction.hasFocus { remote.press(.left) }
+        saveScreenshot(app, name: "Player artist action")
+        XCTAssertTrue(artistAction.hasFocus, app.debugDescription)
+        remote.press(.playPause) // Resume before navigating so the floating video keeps playing.
+        remote.press(.select)
+        let mini = app.otherElements["mini-player"]
+        XCTAssertTrue(mini.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(app.staticTexts["'Til Tuesday"].waitForExistence(timeout: 10))
+        XCTAssertTrue((mini.value as? String)?.hasPrefix("Video 1 of") == true)
+        saveScreenshot(app, name: "Artist page with floating playback")
+        let expand = app.buttons["mini-player-expand"]
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "hasFocus == true"), evaluatedWith: expand)
+        waitForExpectations(timeout: 5)
+        // Back from the floating controls returns to the library without stopping playback.
+        remote.press(.menu)
+        XCTAssertTrue(app.buttons["nav-home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(mini.exists)
+        // Return to full screen without restarting the selection.
+        for _ in 0..<5 where !expand.hasFocus { remote.press(.right) }
+        XCTAssertTrue(expand.hasFocus, app.debugDescription)
+        remote.press(.select)
+        XCTAssertTrue(screen.waitForExistence(timeout: 10))
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true)
+        saveScreenshot(app, name: "Floating playback restored to full screen")
+        remote.press(.menu)
+        XCTAssertTrue(screen.waitForNonExistence(timeout: 10))
+        XCTAssertFalse(mini.exists)
+    }
+
     func testDoubleRightTapSkipsExactlyOneVideo() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -136,6 +190,7 @@ final class NavigationTests: XCTestCase {
         for _ in 0..<5 { remote.press(.left) }
         remote.press(.select)
         XCTAssertTrue(app.buttons["shuffle"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'video-'")).firstMatch.waitForExistence(timeout: 20))
         remote.press(.down)
         for _ in 0..<5 {
             let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
@@ -145,11 +200,14 @@ final class NavigationTests: XCTestCase {
         let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
         XCTAssertTrue(focused.identifier.hasPrefix("video-"), app.debugDescription)
         let identifier = focused.identifier
+        // Focus arrives before tvOS finishes animating the scroll position.
+        Thread.sleep(forTimeInterval: 0.5)
         let originalFrame = focused.frame
         remote.press(.select)
         XCTAssertTrue(app.otherElements["playback-screen"].waitForExistence(timeout: 30))
         let playback = XCTAttachment(screenshot: app.screenshot()); playback.name = "Real library playback"; playback.lifetime = .keepAlways; add(playback)
         remote.press(.menu)
+        XCTAssertTrue(app.otherElements["playback-screen"].waitForNonExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 10))
         let restored = NSPredicate(format: "hasFocus == true")
         expectation(for: restored, evaluatedWith: app.buttons[identifier])
@@ -191,6 +249,7 @@ final class NavigationTests: XCTestCase {
         remote.press(.select)
         XCTAssertTrue(app.otherElements["playback-screen"].waitForExistence(timeout: 40))
         remote.press(.menu)
+        XCTAssertTrue(app.otherElements["playback-screen"].waitForNonExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 10))
         expectation(for: NSPredicate(format: "hasFocus == true"), evaluatedWith: app.buttons[identifier])
         waitForExpectations(timeout: 5)

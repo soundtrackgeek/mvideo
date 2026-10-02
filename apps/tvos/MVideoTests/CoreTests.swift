@@ -7,7 +7,7 @@ final class CoreTests: XCTestCase {
         let api = API(Connection(origin: try Connection.origin("https://example.com"), token: "test"))
         let model = PlayerModel(api: api, ids: ["last"], title: "One video")
         defer { model.stop() }
-        let coordinator = NativePlayer.Coordinator(model: model)
+        let coordinator = NativePlayer.Coordinator(model: model, session: PlaybackSession())
         let tap = CompletedTapGesture()
         coordinator.skipVideo(tap)
         XCTAssertEqual(model.queue.current, "last", "Ignore the shortcut during preparation.")
