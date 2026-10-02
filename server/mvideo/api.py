@@ -13,6 +13,7 @@ from .database import Database
 from .library import Library
 from .metadata import Metadata
 from .playback import Playback, make_queue
+from .normalization import playback_normalization
 from .playlists import Playlists, PlaylistConflict
 
 
@@ -59,7 +60,7 @@ def create_app(settings=None):
         yield
         playback.close()
         metadata.close()
-    app=FastAPI(title='mvideo',version='0.8.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.9.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
@@ -93,7 +94,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.8.0'}
+    def health(): return {'service':'mvideo','version':'0.9.0'}
 
     def playlist_result(value, sid):
         data = value.copy()
@@ -222,6 +223,8 @@ def create_app(settings=None):
         try:result=playback.prepare(identity)
         except (OSError,ValueError):raise HTTPException(404,'Source file is unavailable')
         if result['state']=='ready':
+            try:result['normalization']=playback_normalization(library,identity)
+            except (OSError,ValueError):raise HTTPException(404,'Source file is unavailable')
             result['url']='/media/'+identity+'/'+auth.ticket(sid,'media:'+identity)+'/video.mp4'
         return result
 

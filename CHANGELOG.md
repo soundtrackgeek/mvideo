@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0] - 2026-10-02
+
+### Added
+
+- On-device Apple TV volume normalization using the saved first-audio loudness measurements. A native audio tap applies per-video gain before playback, targeting -18 LUFS with measured true-peak headroom and a +12 dB boost ceiling.
+- Persistent, enabled-by-default **Normalize volume** player control with smooth switching, per-item reset and original-volume fallback for missing, failed, stale or unsupported measurements.
+- Authenticated playback responses with validated normalization metadata, plus a Windows server-package updater that retains the installed state and restarts a running service after installation.
+- Native HTTP playback tests for actual sample gain, seeking, automatic next, missing measurements and preference persistence; server tests for gain constraints, stale/failed records and real first-audio-track remuxing.
+
+### Changed
+
+- MP4 files with multiple audio tracks now use the existing remux path to expose only the measured first track to Apple TV.
+- Server and tvOS source version is 0.9.0; Apple TV build number is 6. Source media is unchanged and normalization does not create new audio conversions.
+
 ## [0.8.0] - 2026-10-01
 
 ### Added

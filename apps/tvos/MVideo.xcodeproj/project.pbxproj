@@ -10,8 +10,10 @@
 		0E0EB2211E0BE3A011C9960E /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5A7BBCD7CFF9531C525A4C /* Connection.swift */; };
 		1278F86BCC59DE7210478680 /* PlaybackIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */; };
 		20155B3938A886525AA014A6 /* ArtistPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5F8B0066619A28A889AC49 /* ArtistPhotoViewer.swift */; };
+		3440900D28984D49A37743E1 /* Normalization.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 41CC3B52BE044B403A4DE696 /* Normalization.mp4 */; };
 		6AACD868B7D52033AE4F1978 /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889C723F179117C90E0644F6 /* CoreTests.swift */; };
 		794547E32EC9E992F212EF67 /* Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53A6B2D9ED32E58A039193F /* Playback.swift */; };
+		9973E7A9ACC2517E003A819F /* AudioNormalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C986A24471154D595A2E517 /* AudioNormalization.swift */; };
 		9FAFCDCCF31E5C34E7616CE1 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E38E4A171993E547E576D7 /* Theme.swift */; };
 		A0605E49B26EE541FAD099B3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A745957C41502FD320BE9DF3 /* Assets.xcassets */; };
 		A164FC3F2DFB422F15A1D788 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AE0772F8E2A47AA58C9D39 /* App.swift */; };
@@ -19,6 +21,7 @@
 		AEB2EAAC531D6F7DC25A8212 /* FacetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE8B5EF9896A0049C5217F32 /* FacetCard.swift */; };
 		AED9DC9F9E8EC7B9D3ABAC10 /* Browse.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B95EFCC1B2CC95494863F2 /* Browse.swift */; };
 		C00AAEE77A8280100CA45201 /* NavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C17C42E9315C8D6DBF4A09 /* NavigationTests.swift */; };
+		D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,13 +42,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		41CC3B52BE044B403A4DE696 /* Normalization.mp4 */ = {isa = PBXFileReference; path = Normalization.mp4; sourceTree = "<group>"; };
 		42AE0772F8E2A47AA58C9D39 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		42C45577254532C45AC3A330 /* MVideoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MVideoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F5A7BBCD7CFF9531C525A4C /* Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connection.swift; sourceTree = "<group>"; };
 		66C17C42E9315C8D6DBF4A09 /* NavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTests.swift; sourceTree = "<group>"; };
 		72A7A3FDA1AA5B6E11939CC2 /* MVideo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MVideo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		889C723F179117C90E0644F6 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
+		8C986A24471154D595A2E517 /* AudioNormalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioNormalization.swift; sourceTree = "<group>"; };
 		9ABFB457B76F121670806A62 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizationTests.swift; sourceTree = "<group>"; };
 		A745957C41502FD320BE9DF3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A9B95EFCC1B2CC95494863F2 /* Browse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Browse.swift; sourceTree = "<group>"; };
 		C8E38E4A171993E547E576D7 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -61,9 +67,19 @@
 			isa = PBXGroup;
 			children = (
 				889C723F179117C90E0644F6 /* CoreTests.swift */,
+				A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */,
 				DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */,
+				96408E54CC2CCABB146DDBBC /* Fixtures */,
 			);
 			path = MVideoTests;
+			sourceTree = "<group>";
+		};
+		96408E54CC2CCABB146DDBBC /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				41CC3B52BE044B403A4DE696 /* Normalization.mp4 */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 		9C58619420E51754792E597F /* Products */ = {
@@ -100,6 +116,7 @@
 				42AE0772F8E2A47AA58C9D39 /* App.swift */,
 				CF5F8B0066619A28A889AC49 /* ArtistPhotoViewer.swift */,
 				A745957C41502FD320BE9DF3 /* Assets.xcassets */,
+				8C986A24471154D595A2E517 /* AudioNormalization.swift */,
 				A9B95EFCC1B2CC95494863F2 /* Browse.swift */,
 				5F5A7BBCD7CFF9531C525A4C /* Connection.swift */,
 				EE8B5EF9896A0049C5217F32 /* FacetCard.swift */,
@@ -154,6 +171,7 @@
 			buildConfigurationList = 05D7B3349EFC3AE3890E3727 /* Build configuration list for PBXNativeTarget "MVideoTests" */;
 			buildPhases = (
 				FA15B10C6AF80EFF998F0FC3 /* Sources */,
+				AEF1E11D7D39512A9B453A2E /* Resources */,
 			);
 			buildRules = (
 			);
@@ -221,6 +239,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AEF1E11D7D39512A9B453A2E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3440900D28984D49A37743E1 /* Normalization.mp4 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -238,6 +264,7 @@
 			files = (
 				A164FC3F2DFB422F15A1D788 /* App.swift in Sources */,
 				20155B3938A886525AA014A6 /* ArtistPhotoViewer.swift in Sources */,
+				9973E7A9ACC2517E003A819F /* AudioNormalization.swift in Sources */,
 				AED9DC9F9E8EC7B9D3ABAC10 /* Browse.swift in Sources */,
 				0E0EB2211E0BE3A011C9960E /* Connection.swift in Sources */,
 				AEB2EAAC531D6F7DC25A8212 /* FacetCard.swift in Sources */,
@@ -252,6 +279,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6AACD868B7D52033AE4F1978 /* CoreTests.swift in Sources */,
+				D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */,
 				1278F86BCC59DE7210478680 /* PlaybackIntegrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -344,7 +372,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -364,7 +392,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.9.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -413,7 +441,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -427,7 +455,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.9.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

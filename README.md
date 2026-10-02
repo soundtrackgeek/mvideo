@@ -6,7 +6,7 @@ The Windows service and native tvOS app are implemented. The app supports shared
 
 Artist tiles and pages automatically look up fanart.tv photography as you browse. The server matches artists against MusicBrainz recording credits using songs in your library, then caches their photos. Tiles replace temporary video stills when photos arrive; unmatched artists or missing provider photos keep the fallback. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
 
-The real Windows catalog contains **15,559 videos**. Version **0.5.0 (4)** is available in the dedicated **mvideo testers** TestFlight group. The requested invitation to `jtillnes2@yahoo.com` was accepted; update mvideo through TestFlight on Apple TV. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
+The current Windows catalog contains **15,558 videos** after moving one unknown-year video aside. The owner's completed loudness scan reports **15,541 measured videos and 17 errors**. Apple TV updates are delivered through the dedicated **mvideo testers** TestFlight group. The requested invitation to `jtillnes2@yahoo.com` was accepted; update mvideo through TestFlight on Apple TV. See [verification evidence](docs/implementation/VERIFICATION.md) for current TestFlight and device status.
 
 ## Playlists and browser editor
 
@@ -130,9 +130,26 @@ Matt Cox's file moves to `L:\MusicVideos - Needs Review` beside the current libr
 
 ### Playback and queues
 
+#### Normalize volume on Apple TV
+
+Version **0.9.0** uses the saved measurements to adjust each video's audio **on the Apple TV during playback**. **Normalize volume** is on by default and appears beside Previous/Next in the player controls. The setting persists across videos and app launches; switching it smoothly changes the current video's gain. Up Next shows whether normalization is active or the video is playing at its original volume.
+
+The target is **-18 LUFS**. Gain is capped to keep the source's measured true peak at or below **-2 dBTP**, with a maximum **+12 dB** boost. Some quiet or highly dynamic tracks therefore remain below the target. The adjustment is constant within each song, preserving its dynamics. Failed, missing or stale measurements use original volume; the 17 failed analyses do not prevent playback. Rerunning the measurement command retries them.
+
+Both the library service and Apple TV app need the update. In **administrator PowerShell**, from your current Windows checkout:
+
+```powershell
+git pull --ff-only
+.\scripts\windows-update-service.ps1
+```
+
+The updater builds the current server package, installs it in the configured service Python, and restarts the task if it was running. It retains the existing ProgramData database, measurements, pairing sessions, provider settings and media. It checks `/health` for the new version. Use `-State` for a nonstandard installed state directory. Then install the new Apple TV build through TestFlight. No rescan or repeat of successful audio analysis is needed.
+
+The audio tap applies gain to decoded samples; it does not rewrite videos or require an additional normalized conversion cache. Multi-audio MP4s use a remuxed copy of their first audio track so playback matches the measurement. Existing format-compatibility conversions still apply. See [normalization behavior, limits and verification](docs/normalization.md).
+
 #### Measure audio loudness
 
-The server source includes a resumable audio measurement command for preparing volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. This command gathers measurements; the current Apple TV app does **not yet apply them** during playback. This source update has not been deployed to the Windows service or TestFlight.
+The server includes a resumable audio measurement command for volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. Apple TV 0.9.0 applies validated measurements during playback when connected to the updated service.
 
 On the Windows PC, run from an updated mvideo source directory. The launcher uses that checkout's Python environment when present, or reuses the installed service's Python environment:
 
@@ -158,7 +175,7 @@ The portable CLI uses the usual `MVIDEO_LIBRARY`, `MVIDEO_STATE`, `MVIDEO_FFMPEG
 - Silent or below-gate tracks and videos without audio are recorded separately, with no invented loudness/gain. Decode failures and timeouts are recorded, later videos continue, and failed files retry on the next run. Two loudness scans cannot run against the same state directory simultaneously.
 - Use `-Force` / `--force` to remeasure completed videos. `-Limit N` / `--limit N` counts attempted files, including failures, but excludes cached results. `-TimeoutSeconds N` / `--timeout N` changes the default 1,800-second analysis timeout per video. Exit codes: 0 for a successful batch, 1 for failures/deferred results, 130 for interruption.
 
-Analysis uses the first audio stream, converted to a defined stereo/48 kHz mix before measurement; the profile is `first-audio-stereo-48k-r128-v1`. Only the filter's **input** measurements are retained, so they are independent of a future playback loudness target. They describe this source mix; a future player integration must account for its channel mix and any peaks introduced by AAC conversion. Changing the listening target does not require another scan.
+Analysis uses the first audio stream, converted to a defined stereo/48 kHz mix before measurement; the profile is `first-audio-stereo-48k-r128-v1`. Only the filter's **input** measurements are retained, so the playback target does not require another scan. The native player uses measured peak headroom and a final sample guard; see the normalization notes for the limits of source measurements after AAC conversion and device mixing.
 
 #### Playback behavior
 

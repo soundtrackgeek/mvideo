@@ -40,7 +40,10 @@ def playback_plan(probe):
     audio_ok = audio is None or (audio.get('codec_name')=='aac' and audio.get('profile')=='LC'
                                 and (audio.get('channels') or 0)<=2 and int(audio.get('sample_rate') or 0)<=48000)
     container = probe.get('format',{}).get('format_name') or ''
-    if video_ok and audio_ok and 'mp4' in container.split(','):
+    # Direct playback must expose only the measured first audio track. Otherwise
+    # AVPlayer may auto-select a different language/default track with different loudness.
+    single_audio = sum(s.get('codec_type') == 'audio' for s in streams) <= 1
+    if video_ok and audio_ok and single_audio and 'mp4' in container.split(','):
         return 'direct'
     if video_ok:
         return 'remux' if audio_ok else 'audio_transcode'

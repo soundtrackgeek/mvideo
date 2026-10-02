@@ -92,6 +92,14 @@ Home chooses a random available background from matched library artists once per
 - **Nine real PowerShell checks passed** under portable PowerShell 7.6.6 on macOS. Seven existing loudness-launcher checks still pass after sharing Python/configuration discovery; two additional checks execute the filename preview and custom-plan apply through the actual CLI. Paths with spaces and a separate checkout/service environment were exercised. Reproduction harness: ignored `output/powershell-qa/check_launcher.py`.
 - Production media has **not** been renamed or moved. The mounted L share is readable, but the live database is at `C:\ProgramData\mvideo\library.sqlite3` and remote Windows command access was unavailable. Apply the command on the Windows PC, then verify its summary and refresh the Apple TV library. Native Windows filesystem execution remains to be confirmed there; no service or TestFlight deployment was performed.
 
+## 0.9.0 on-device volume normalization
+
+- Owner-reported completed analysis on 2026-10-02: **15,541 current measurements, 17 errors, zero pending/stale**, across **15,558** videos. Normalization uses those stored measurements, with original-volume fallback for unusable records.
+- **96 server tests passed**, including 19 new gain/API/first-track cases and a real FFmpeg multi-audio MP4 remux. Source bytes remain unchanged. Authenticated responses supply bounded gain only for matching file/profile/stream measurements.
+- **11 native tests passed** on tvOS 26.5 Simulator using Xcode 26.6: eight existing core tests and three normalization tests. The generated MP4 is served over actual loopback HTTP with byte ranges. The test verifies the real audio tap's positive/negative sample gain, unity when disabled, seeking, automatic next, no inherited gain for an unmeasured item and persisted preferences. An initial assertion raced the silent preroll buffer; the test now waits for actual nonzero source samples. Final result: ignored `output/normalization-native-tests.log` and `output/NormalizationDerivedData/Logs/Test/`.
+- **Four updater PowerShell checks passed** with mocked Task Scheduler/pip/health on macOS: update/restart of a running service, preservation of a stopped service, package-build failure before stopping, and restart after an installation error. A real server wheel built successfully; it includes the normalization module and bundled data. Native Windows deployment remains to be verified separately.
+- Release **0.9.0 (6)** archived and distribution-signed/exported successfully. Artifacts: ignored `output/MVideo-0.9.0.xcarchive` and `output/export-0.9.0/MVideo.ipa`. Upload/processing and installed-device behavior are separate checks; see delivery status below.
+
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.

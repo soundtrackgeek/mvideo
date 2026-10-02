@@ -56,7 +56,23 @@ struct FeaturedArtwork: Decodable {
     let sourceUrl: String
 }
 struct FeaturedResponse: Decodable { let item: FeaturedArtwork? }
-struct PlaybackResponse: Decodable { let state: String; let mode: String; let url: String?; let error: String? }
+struct PlaybackResponse: Decodable {
+    let state: String
+    let mode: String
+    let url: String?
+    let error: String?
+    let normalization: PlaybackNormalization?
+}
+struct PlaybackNormalization: Decodable {
+    let state: String
+    let profile: String
+    let gainDb: Double?
+    var gain: Float? {
+        guard state == "ready", profile == "track-gain-v1", let gainDb,
+              gainDb.isFinite, (-100...12).contains(gainDb) else { return nil }
+        return Float(pow(10, gainDb / 20))
+    }
+}
 struct QueueResponse: Decodable { let ids: [String]; let revision: Int }
 struct Playlist: Decodable, Identifiable {
     let id: String

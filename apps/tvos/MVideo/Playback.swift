@@ -23,17 +23,29 @@ struct QueueCursor: Equatable {
     var error: String?
     var finished = false
     var upNext: [Video] = []
+    private(set) var normalizationEnabled: Bool
+    private(set) var normalizationMessage = "Original volume"
+    private(set) var normalization: AudioNormalization?
+    private let preferences: UserDefaults
+    private var normalizationTask: Task<Void, Never>?
+    private var loadID = UUID()
     private var loadTask: Task<Void, Never>?
     private var previewTask: Task<Void, Never>?
     private var observation: NSKeyValueObservation?
     private var endObserver: NSObjectProtocol?
     private var failedObserver: NSObjectProtocol?
-    init(api: API, ids: [String], title: String) {
+    init(api: API, ids: [String], title: String, preferences: UserDefaults = .standard) {
         self.api = api; self.title = title; queue = QueueCursor(ids: ids)
+        self.preferences = preferences
+        normalizationEnabled = preferences.object(forKey: "normalizeVolume") as? Bool ?? true
     }
     func start() {
-        loadTask?.cancel(); previewTask?.cancel(); clearObservers()
+        loadTask?.cancel(); previewTask?.cancel(); normalizationTask?.cancel(); clearObservers()
+        loadID = UUID()
+        let generation = loadID
         player.pause(); player.replaceCurrentItem(with: nil)
+        normalization = nil
+        normalizationMessage = "Original volume"
         error = nil; current = nil; upNext = []; preparing = true; finished = queue.current == nil
         guard let id = queue.current else { preparing = false; return }
         let index = queue.index
@@ -53,6 +65,25 @@ struct QueueCursor: Equatable {
                 try Task.checkCancellation()
                 guard queue.index == index, let path = prepared?.url else { throw ServiceError.message("Preparation took too long. Retry or skip this video.") }
                 let item = AVPlayerItem(url: try api.connection.url(path))
+                var adjustment: AudioNormalization?
+                var volumeMessage = prepared?.normalization == nil
+                    ? "Original volume · update the library server to enable normalization"
+                    : "Original volume · no usable measurement"
+                if let gain = prepared?.normalization?.gain {
+                    do {
+                        adjustment = try await AudioNormalization.make(for: item.asset, gain: gain, enabled: normalizationEnabled)
+                        volumeMessage = "Checking volume normalization…"
+                    } catch {
+                        volumeMessage = "Original volume · normalization unavailable"
+                    }
+                }
+                try Task.checkCancellation()
+                guard loadID == generation else { return }
+                normalization = adjustment
+                normalization?.processor.enabled.store(normalizationEnabled, ordering: .relaxed)
+                normalizationMessage = volumeMessage
+                // Install before the item enters AVPlayer, avoiding an unadjusted opening burst.
+                item.audioMix = adjustment?.mix
                 var metadata: [AVMetadataItem] = []
                 for (identifier, value) in [(AVMetadataIdentifier.commonIdentifierTitle, current?.playbackTitle ?? ""), (.commonIdentifierArtist, current?.artist ?? "")] {
                     let field = AVMutableMetadataItem(); field.identifier = identifier; field.value = value as NSString; field.extendedLanguageTag = "und"; metadata.append(field)
@@ -61,21 +92,28 @@ struct QueueCursor: Equatable {
                 observation = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
                     let status = item.status
                     Task { @MainActor in
-                        guard let self, self.queue.index == index else { return }
+                        guard let self, self.loadID == generation else { return }
                         if status == .readyToPlay { self.preparing = false }
                         if status == .failed { self.preparing = false; self.error = "Playback failed. Check the connection, then retry or skip this video." }
                     }
                 }
                 endObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main) { [weak self] _ in
-                    Task { @MainActor in self?.next() }
+                    Task { @MainActor in
+                        guard let self, self.loadID == generation else { return }
+                        self.next()
+                    }
                 }
                 failedObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main) { [weak self] _ in
-                    Task { @MainActor in self?.error = "Playback was interrupted. Retry this video or skip to the next one."; self?.preparing = false }
+                    Task { @MainActor in
+                        guard let self, self.loadID == generation else { return }
+                        self.error = "Playback was interrupted. Retry this video or skip to the next one."; self.preparing = false
+                    }
                 }
                 player.replaceCurrentItem(with: item)
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
                 try AVAudioSession.sharedInstance().setActive(true)
                 player.play()
+                observeNormalization(generation: generation)
                 prefetch()
             } catch {
                 guard !Task.isCancelled, queue.index == index else { return }
@@ -88,9 +126,31 @@ struct QueueCursor: Equatable {
     func replay() { queue.restart(); start() }
     func select(_ id: String) { if let index = queue.ids.firstIndex(of: id) { queue.move(to: index); start() } }
     func stop() {
-        loadTask?.cancel(); previewTask?.cancel(); clearObservers()
+        loadTask?.cancel(); previewTask?.cancel(); normalizationTask?.cancel(); clearObservers()
+        loadID = UUID()
         player.pause(); player.replaceCurrentItem(with: nil)
+        normalization = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+    func toggleNormalization() {
+        normalizationEnabled.toggle()
+        preferences.set(normalizationEnabled, forKey: "normalizeVolume")
+        normalization?.processor.enabled.store(normalizationEnabled, ordering: .relaxed)
+    }
+    private func observeNormalization(generation: UUID) {
+        guard let processor = normalization?.processor else { return }
+        normalizationTask = Task { [weak self] in
+            for _ in 0..<40 {
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                guard let self, self.loadID == generation else { return }
+                if processor.processedFrames.load(ordering: .relaxed) > 0 {
+                    self.normalizationMessage = "Volume normalization on"
+                    return
+                }
+            }
+            guard let self, self.loadID == generation else { return }
+            self.normalizationMessage = "Original volume · normalization unavailable"
+        }
     }
     private func clearObservers() {
         observation = nil
@@ -158,6 +218,8 @@ struct NativePlayer: UIViewControllerRepresentable {
         context.coordinator.model = model
         context.coordinator.skipGesture.isEnabled = !model.preparing && model.error == nil && !model.finished
         controller.transportBarCustomMenuItems = [
+            UIAction(title: "Normalize volume", image: UIImage(systemName: "waveform"),
+                     state: model.normalizationEnabled ? .on : .off) { _ in model.toggleNormalization() },
             UIAction(title: "Previous video", image: UIImage(systemName: "backward.end.fill")) { _ in model.previous() },
             UIAction(title: "Next video", image: UIImage(systemName: "forward.end.fill")) { _ in model.next() }
         ]
@@ -216,6 +278,8 @@ struct UpNextView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("\(model.queue.index + 1) of \(model.queue.ids.count) · \(model.title)").font(.title3.bold())
+            Text(model.normalizationEnabled ? model.normalizationMessage : "Volume normalization off")
+                .font(.caption).foregroundStyle(Theme.secondary)
             ScrollView(.horizontal) {
                 HStack(spacing: 25) {
                     ForEach(model.upNext) { video in
