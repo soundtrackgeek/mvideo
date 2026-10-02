@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2] - 2026-10-02
+
+### Added
+
+- README maintenance procedure for adding/replacing videos, indexing through the installed Windows environment, measuring loudness, checking coverage and reloading Apple TV.
+- Exact custom rename-plan instructions to preserve measurements and playlist references, plus recovery steps for files already renamed manually and an explanation of automatic playback gain versus manual loudness analysis.
+
 ## [0.9.1] - 2026-10-02
 
 ### Fixed

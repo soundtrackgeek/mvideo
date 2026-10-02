@@ -85,6 +85,86 @@ For maintenance, use Task Scheduler's **mvideo Library** task, or run `Stop-Sche
 
 `windows-provision.ps1` supports an encrypted one-time transfer from another computer when interactive key entry is inconvenient. Provider credentials never enter the tvOS app, Git or request logs. `windows-verify.ps1` writes local diagnostic reports and a five-minute pairing-code handoff; consume the code immediately and remove its file.
 
+### Adding, replacing, or renaming music videos
+
+Use this procedure on the **Windows PC** whenever you change the library. The media folder is **`L:\MusicVideos`**, the database is **`C:\ProgramData\mvideo\library.sqlite3`**, and the maintenance checkout is **`C:\_code\mvideo`**. Run the commands below in the same **administrator PowerShell** window. The installed background service can keep running.
+
+**What happens automatically:** the service indexes files at startup and every 30 minutes, but **does not automatically measure loudness**. Each time a video starts, Apple TV requests playback information from the server. The server reads and validates that video's saved loudness measurement, calculates its gain, and sends it to the app. With **Normalize volume** enabled (the default), Apple TV applies the gain during playback. There is no per-video setting, media rewrite, service restart, or new app build needed after measuring new videos. An already playing video picks up a newly saved measurement when you start it again.
+
+#### Add new videos or replace existing files
+
+1. **Prepare the files.** Use `Artist - Title (Year).ext`, for example `a-ha - Take On Me (1985).mp4`. Keep the real file extension and use a space on each side of the artist/title dash. Choose missing or uncertain years manually; keep undecided files in `L:\MusicVideos - Needs Review` outside the active library. Finish downloading/copying and naming files outside `L:\MusicVideos`, then move the completed files into that folder or its subfolders. Stop playback of a file before replacing it.
+
+2. **Index the files now.** This avoids waiting for the next automatic scan and makes the new files available to the loudness command. The helper below selects the existing Python environment and loads the installed library/FFmpeg configuration without starting another server:
+
+   ```powershell
+   Set-Location 'C:\_code\mvideo'
+   git pull --ff-only
+   $mvideoPython = & .\scripts\windows-python.ps1 -State 'C:\ProgramData\mvideo'
+   & $mvideoPython -m mvideo.cli scan
+   ```
+
+   Wait for the final JSON to report **`"state": "idle"`, `"pending": 0`, and `"inaccessible": 0`**. `changed` counts new or changed catalog entries; `scanned` includes unchanged files too. If it says `busy`, wait for the other catalog scan to finish and rerun the last command. Resolve `warning`/`error` results before continuing. An idle scan does not guarantee every file decoded successfully; the measurement step reports audio failures separately.
+
+3. **Measure audio and check coverage.** After the catalog scan has finished, run:
+
+   ```powershell
+   .\scripts\windows-measure-loudness.ps1 -State 'C:\ProgramData\mvideo'
+   .\scripts\windows-measure-loudness.ps1 -State 'C:\ProgramData\mvideo' -Status
+   ```
+
+   The command checks the indexed library but **skips unchanged completed measurements**. It measures new files, remeasures files whose size/modification time or analysis profile changed, and retries earlier failures. **Do not use `-Force` for routine additions or replacements**: it would remeasure all completed videos. Results are saved per video; if interrupted with Ctrl+C, rerun the same command to resume.
+
+   In the final catalog/status summary, aim for `pending: 0` and `stale: 0`. `measured` counts videos with usable saved volumes. `error` lists the count that failed; each failure is printed with its video ID and error during the run. The existing 17 errors may remain if those files still cannot be analyzed. An error exit code does not discard successful measurements. `below_gate` and `no_audio` are separate outcomes without a usable gain. Videos with unusable measurements play at original volume, and **Normalize volume** cannot fix that until a valid measurement exists.
+
+4. **Reload the Apple TV library.** Exit the current playback queue, fully close mvideo, and reopen it to reload cached browsing lists. For an edited playlist, **Refresh playlists / Refresh playlist** also reloads it. Start a new selection; an existing queue does not acquire newly added videos. Keep **Normalize volume** enabled in the player controls. **Up Next** shows normalization status for the current video. Add new videos to any handpicked playlists yourself in Playlist studio; indexing does not add them to existing playlists.
+
+#### Rename an already indexed video while keeping its measurements and playlists
+
+Use the filename repair command **before renaming the file in Explorer or Total Commander**. Video IDs depend on the relative path. This command migrates the saved volume, playlist entries/order and metadata overrides to the new ID while renaming the file.
+
+1. Close active mvideo playback and playlist editing, and stop any loudness scan with Ctrl+C. Run the setup/catalog commands in step 2 above so the old filename is indexed. The service can remain running; the repair command locks out conflicting catalog/loudness scans. If a scan holds the lock, wait and retry.
+2. Create a UTF-8 JSON plan outside the media folder. From `C:\_code\mvideo`:
+
+   ```powershell
+   New-Item -ItemType Directory -Force .\output | Out-Null
+   notepad .\output\my-renames.json
+   ```
+
+   Paste this example, **replace the example names with your exact existing and desired filenames**, and save. Add another object to `repairs` for each additional rename:
+
+   ```json
+   {
+     "version": 1,
+     "repairs": [
+       {
+         "old_path": "Example Artist - Song Titlle (2024).mp4",
+         "new_path": "Example Artist - Song Title (2024).mp4"
+       }
+     ],
+     "hold": []
+   }
+   ```
+
+   Paths are relative to `L:\MusicVideos`; for subfolders, use forward slashes, such as `Pop/Example Artist - Song Title (2024).mp4`. A repair must keep the same directory and media extension, and the new name must parse as `Artist - Title (Year)`. Case-only renames and moves between subfolders are not supported by this command.
+
+3. **Preview**, check the exact old/new names, then **apply**:
+
+   ```powershell
+   .\scripts\windows-fix-filenames.ps1 -State 'C:\ProgramData\mvideo' -Plan .\output\my-renames.json
+   .\scripts\windows-fix-filenames.ps1 -State 'C:\ProgramData\mvideo' -Plan .\output\my-renames.json -Apply
+   ```
+
+   Before applying, expect each intended rename to be `ready`, with `conflict: 0` and `not_in_catalog: 0`. `already_done` means that action was previously completed. The `manual` list reports other catalog filenames needing review, including missing/ambiguous years; fix those through your own decisions. Always supply **`-Plan` for new renames**: omitting it selects the original, fixed 184-action cleanup plan, not an automatic renamer for new files.
+
+   Applying creates a database backup and updates the catalog immediately. Keep its reported backup/journal for recovery. If interrupted, rerun the same `-Apply` command. An unchanged file's valid loudness measurement is retained, so renaming through this command does not require decoding its audio again.
+
+4. Run the measurement/status commands in step 3 of the addition procedure, then reload Apple TV as in step 4. Existing valid measurements are skipped; any previously unmeasured or failed videos are handled normally. Retained metadata overrides take priority over the filename if one was previously set.
+
+#### If you already renamed or moved files manually
+
+Run the **index → measure → status → reload Apple TV** procedure above. The scanner treats the new relative path as a new video and marks the old path unavailable; it does **not** infer that they are the same file. The new entry therefore needs a new loudness measurement. In Playlist studio, replace unavailable old entries with the newly indexed videos and restore any manual metadata overrides as needed. Do not apply an old-name rename plan after moving the file yourself. For future filename changes, use the repair procedure to retain those links and measurements.
+
 ### Configuration
 
 | Variable | Default | Purpose |
@@ -159,7 +239,7 @@ On the Windows PC, run from an updated mvideo source directory. The launcher use
 .\scripts\windows-measure-loudness.ps1 -Limit 10   # small batch before running the whole library
 ```
 
-The launcher reads `background.json` in the installed ProgramData state directory to use the service's library, FFmpeg paths, and fallback Python executable. A separate checkout (for example `C:\_code\mvideo`) can therefore use the service environment at `L:\mvideo-service` while running the scanner source from the new checkout; there is no need to install another environment or rescan an already indexed library. It also supports an interactive installation, `MVIDEO_STATE`, explicit `-Library` / `-State` paths, and `-PythonPath` to select an existing Python 3.12+ executable with mvideo's dependencies. No provider credentials, service restart, or Apple TV update are required to measure audio. If the catalog needs updating, run `scripts/windows-start.ps1 -Scan` from the installed service checkout with the same library/state configuration.
+The launcher reads `background.json` in the installed ProgramData state directory to use the service's library, FFmpeg paths, and fallback Python executable. A separate checkout (for example `C:\_code\mvideo`) can therefore use the service environment at `L:\mvideo-service` while running the scanner source from the new checkout; there is no need to install another environment or rescan an already indexed library. It also supports an interactive installation, `MVIDEO_STATE`, explicit `-Library` / `-State` paths, and `-PythonPath` to select an existing Python 3.12+ executable with mvideo's dependencies. No provider credentials, service restart, or Apple TV update are required to measure audio. For new or changed files, follow [Adding, replacing, or renaming music videos](#adding-replacing-or-renaming-music-videos) to update the catalog before measuring audio.
 
 The portable CLI uses the usual `MVIDEO_LIBRARY`, `MVIDEO_STATE`, `MVIDEO_FFMPEG`, and `MVIDEO_FFPROBE` settings:
 
