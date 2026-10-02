@@ -60,7 +60,7 @@ def create_app(settings=None):
         yield
         playback.close()
         metadata.close()
-    app=FastAPI(title='mvideo',version='0.9.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.9.1',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
@@ -94,7 +94,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.9.0'}
+    def health(): return {'service':'mvideo','version':'0.9.1'}
 
     def playlist_result(value, sid):
         data = value.copy()

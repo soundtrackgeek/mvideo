@@ -143,7 +143,7 @@ git pull --ff-only
 .\scripts\windows-update-service.ps1
 ```
 
-The updater builds the current server package, installs it in the configured service Python, and restarts the task if it was running. It retains the existing ProgramData database, measurements, pairing sessions, provider settings and media. It checks `/health` for the new version. Use `-State` for a nonstandard installed state directory. Then install the new Apple TV build through TestFlight. No rescan or repeat of successful audio analysis is needed.
+The updater builds the current server package, installs it in the configured service Python, and restarts the task if it was running. It retains the existing ProgramData database, measurements, pairing sessions, provider settings and media. It checks `/health` for the new version. Use `-State` for a nonstandard installed state directory. Server **0.9.1** isolates installation from Python settings left by maintenance scripts and works with Apple TV **0.9.0 (6)**. Install that Apple TV build through TestFlight. No rescan or repeat of successful audio analysis is needed.
 
 The audio tap applies gain to decoded samples; it does not rewrite videos or require an additional normalized conversion cache. Multi-audio MP4s use a remuxed copy of their first audio track so playback matches the measurement. Existing format-compatibility conversions still apply. See [normalization behavior, limits and verification](docs/normalization.md).
 
