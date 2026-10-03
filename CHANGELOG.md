@@ -10,7 +10,7 @@
 ### Changed
 
 - Uploaded Apple TV **0.10.0 (7)** to App Store Connect at 10:21:06 Europe/Oslo, completed Apple processing and delivered it to **mvideo testers**. App Store Connect confirms installation on the tester's Apple TV.
-- Verified that two pushes automatically started Cloud builds **8** and **9**. Both failed because development/ad hoc exports required a registered tvOS device. Registered the physical Apple TV with the developer team; a fresh automatic build and delivery check remain pending.
+- Resolved the signing failures in automatically triggered Cloud builds **8** and **9** by registering the physical Apple TV with the developer team. A new push automatically produced **0.10.0 (10)**: Cloud succeeded, Apple processing completed and the build is **Testing** for **mvideo testers**.
 
 ## [0.10.1] - 2026-10-03
 
