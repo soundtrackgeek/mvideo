@@ -17,8 +17,20 @@ if (Test-Path $secretFile) {
     foreach ($name in 'LAST_FM','FANART_TV') { [Environment]::SetEnvironmentVariable($name, $providers.$name, 'Process') }
     [Array]::Clear($bytes, 0, $bytes.Length)
 }
+if (!(Test-Path -LiteralPath $config.Python -PathType Leaf)) { throw 'The configured service Python is unavailable.' }
 Set-Location $config.Repository
 $log = Join-Path $State 'service.log'
 if (Test-Path $log) { Move-Item $log ($log + '.previous') -Force }
-& $config.Python -m mvideo.cli serve --port 8765 --scan-interval 1800 *> $log
-exit $LASTEXITCODE
+$serviceExitCode = 1
+$LASTEXITCODE = $null
+$previousErrorActionPreference = $ErrorActionPreference
+try {
+    # Windows PowerShell 5.1 turns redirected native stderr into PowerShell errors.
+    # A Python warning must be logged without terminating the running service.
+    $ErrorActionPreference = 'Continue'
+    & $config.Python -m mvideo.cli serve --port 8765 --scan-interval 1800 *> $log
+    if ($null -ne $LASTEXITCODE) { $serviceExitCode = $LASTEXITCODE }
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+exit $serviceExitCode

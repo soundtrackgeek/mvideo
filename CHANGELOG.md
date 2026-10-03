@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.1] - 2026-10-03
+
+### Fixed
+
+- Prevent Windows PowerShell 5.1 from stopping the library merely because Python writes to stderr. Keep that output in `service.log` and report Python's actual exit code to Task Scheduler.
+
+### Added
+
+- Live Apple TV integration coverage for Home loading, the full-library queue and playback preparation, with request timing that excludes session credentials and media tickets.
+
 ## [0.10.0] - 2026-10-02
 
 ### Added

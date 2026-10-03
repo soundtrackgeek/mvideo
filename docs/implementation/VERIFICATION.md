@@ -1,4 +1,4 @@
-# Verification — updated 2026-10-02
+# Verification — updated 2026-10-03
 
 ## Installed Windows service
 
@@ -114,6 +114,17 @@ Home chooses a random available background from matched library artists once per
 - **Four remote UI tests** cover the artist action and floating player, Back/full-screen return, original focus and scroll position, double-right skip, and playlist playback. The artist test resumes playback before navigating. Reference scroll positions are captured after tvOS finishes its focus animation.
 - Debug simulator and unsigned Release device builds pass with Xcode 26.6. Built app metadata is **0.10.0 (7)** and includes the `audio` background mode. Local evidence is in ignored `output/pip-verified.xcresult`, `output/pip-verified.log` and `output/pip-release-verified.log`.
 - Native PiP callbacks are regression-tested, but the actual system PiP window and background/restore/queue transitions still require a physical Apple TV. Use [Apple's standard-player PiP guidance](https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-in-a-standard-player) for device verification. No TestFlight upload or Windows service update is included in this source change.
+
+## 0.10.1 Windows launcher recovery — 2026-10-03
+
+- The owner reported Library unavailable while the PC was on. Both the PC and Apple TV were online in Tailscale. The **mvideo Library** task was **enabled but stopped** (`Ready`, last result `1`), with no listener on port 8765. Tailscale remained Running/Automatic and its private HTTPS forwarding was intact. The PC had not rebooted since September 30. The task's October 2 last-run timestamp identifies its launch, not the time it failed.
+- Both service logs were empty and Task Scheduler operational history was disabled, so the original triggering error and exact failure time could not be recovered. On this PC's **Windows PowerShell 5.1.26100.9549**, an isolated harmless Python stderr message reproduced `NativeCommandError` with the original launcher's strict error preference. The full original launcher exited `1`, omitted the message from its log, and did not reach the Python completion marker.
+- **Three isolated Windows launcher regression cases passed**: the original launcher reproduced the failure; the corrected launcher retained stderr and completed with exit `0`; a deliberate Python failure retained stderr and propagated exit `7`. Tests used temporary media/state directories and a stub module, without scanning or modifying production media.
+- Deployed the corrected launcher to `L:\mvideo-service\scripts\windows-run-background.ps1`, retaining the existing task/account, provider configuration, catalog, measurements and sessions. The earlier launcher is backed up at `C:\ProgramData\mvideo\backups\launcher-before-0.10.1-20261003.ps1`. Installed and repository script SHA-256 hashes match. The task was Running/Enabled after restart, and both loopback and private HTTPS health checks confirmed the unchanged server package **0.9.1**. This is a launcher patch; no new TestFlight build was needed.
+- Restart readiness was slow (roughly 25 seconds on the first launch and about a minute on the deployment launch). The latter Python process started about 46 seconds after the task, so this delay is not established as purely scanning. Subsequent HTTPS health responses took approximately 30–40 ms. Read-only local timing measured the Home query at 26 ms, the full 15,558-video queue query at 85 ms and the reported video's initial file read at 1 ms.
+- The existing live playback/seek/automatic-next test passed against Windows. A Home UI attempt before deployment failed to load its first video within 20 seconds; after deployment the complete Home → playback → artist → full-screen UI test passed. The new live Home/queue test passed without skips: Home took 4.14 seconds, the 15,558-video queue 0.43 seconds, and **'Til Tuesday — (Believed You Were) Lucky** playback preparation 0.029 seconds. Timing logs contain no session credentials or ticketed URLs.
+- After the first task start, the owner confirmed browsing returned but reported playback request timeouts. After deployment, service restart and fully reopening mvideo, the owner confirmed **playback starts on the physical Apple TV**. The precise cause of those transient request timeouts is not established separately from recovery; the reproduced launcher defect is fixed, while the original stderr trigger remains unknown.
+- Local evidence is in ignored `output/incident-20261003/`: initial task/configuration diagnostics, Windows regression results, deployment verification, query timings, native playback and Home UI test logs/results.
 
 ## TestFlight delivery
 

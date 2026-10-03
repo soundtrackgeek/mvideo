@@ -3,6 +3,52 @@ import XCTest
 @testable import MVideo
 
 final class PlaybackIntegrationTests: XCTestCase {
+    @MainActor func testRealLibraryHomeQueueAndPlayback() async throws {
+        guard let connection = KeychainStore().load() else {
+            throw XCTSkip("Pair the simulator with the real library before running playback integration.")
+        }
+        let api = API(connection)
+        // Home starts its catalog and featured-artwork requests independently.
+        async let featured: FeaturedResponse = measuredLiveRequest("Home featured") {
+            try await api.request("/api/featured")
+        }
+        let page = try await measuredLiveRequest("Home first page") {
+            try await api.videos(scope: Scope())
+        }
+        let first = try XCTUnwrap(page.items.first, "The real Home page must contain videos.")
+        XCTAssertGreaterThanOrEqual(page.total, page.items.count)
+        let queue = try await measuredLiveRequest("Full-library queue") {
+            try await api.queue(scope: Scope(), shuffle: false, start: first.id)
+        }
+        XCTAssertGreaterThanOrEqual(queue.ids.count, page.items.count)
+        XCTAssertEqual(queue.ids.first, first.id)
+        XCTAssertEqual(Set(queue.ids).count, queue.ids.count, "The full-library queue must not repeat videos.")
+        if queue.revision == page.revision {
+            XCTAssertEqual(queue.ids.count, page.total, "Home playback must queue the whole selection.")
+        }
+        guard let lucky = page.items.first(where: {
+            $0.artist == "'Til Tuesday" && $0.title == "(Believed You Were) Lucky"
+        }) else {
+            throw XCTSkip("The reported playback sample is no longer on the real Home first page.")
+        }
+        let prepared: PlaybackResponse = try await measuredLiveRequest("Lucky playback preparation") {
+            try await api.request("/api/playback/" + lucky.id, method: "POST")
+        }
+        XCTAssertEqual(prepared.state, "ready", "The known live sample must be ready to play.")
+        XCTAssertNotNil(prepared.url)
+        _ = try await featured
+    }
+
+    @MainActor private func measuredLiveRequest<T>(_ label: String, operation: () async throws -> T) async rethrows -> T {
+        let start = ContinuousClock.now
+        print("MVIDEO_LIVE_TIMING \(label) started")
+        defer {
+            // Log only a fixed stage name and duration, never session or media URLs.
+            print("MVIDEO_LIVE_TIMING \(label) elapsed \(start.duration(to: .now))")
+        }
+        return try await operation()
+    }
+
     @MainActor func testRealLibrarySeekAndAutomaticNext() async throws {
         guard let connection = KeychainStore().load() else {
             throw XCTSkip("Pair the simulator with the real library before running playback integration.")
