@@ -126,15 +126,25 @@ Home chooses a random available background from matched library artists once per
 - After the first task start, the owner confirmed browsing returned but reported playback request timeouts. After deployment, service restart and fully reopening mvideo, the owner confirmed **playback starts on the physical Apple TV**. The precise cause of those transient request timeouts is not established separately from recovery; the reproduced launcher defect is fixed, while the original stderr trigger remains unknown.
 - Local evidence is in ignored `output/incident-20261003/`: initial task/configuration diagnostics, Windows regression results, deployment verification, query timings, native playback and Home UI test logs/results.
 
+## 0.10.2 automatic TestFlight workflow — 2026-10-03
+
+- GitHub inspection found no Actions workflows, workflow runs, repository secrets, environments or self-hosted runners. Previous commits therefore had no GitHub Actions upload path; 0.10.0 had been built locally without a TestFlight upload.
+- Configured [TestFlight — master in Xcode Cloud](https://appstoreconnect.apple.com/teams/b1e1e3ed-bd76-448e-bf6c-7211ea008199/xcode-cloud/products/B323A525-603A-4250-8F9F-A62E0CFCC703/workflows/07226CB5-6E9A-4728-9B1D-F237016B9E9E) using the existing Apple/GitHub repository connection. It starts for changes to **master**, with **any file change** eligible and older builds automatically cancelled. Its archive action targets **tvOS App Store distribution**, the committed **MVideo** project/shared scheme and **Xcode 26.6**. Saved the **TestFlight Internal Testing** post-action for **mvideo testers** (one member) and set the next Cloud build number to **8**. No additional repository-access grant or signing secrets were needed. The first successful automatic build/delivery remains pending verification.
+- Independently archived and uploaded Apple TV **0.10.0 (7)** with the existing local Xcode account. Upload succeeded at **10:21:06 Europe/Oslo on 2026-10-03**, and Apple processing completed. Added the build to the existing **mvideo testers** internal group; its Builds tab shows **Testing** with 90 days remaining. The Testers tab separately confirms **Installed 0.10.0 (7)** on **2026-10-03**, on the tester's **Apple TV 4K / tvOS 26.6**. This manual delivery does not establish Cloud build success.
+- The app marketing version remains **0.10.0**; this repository release documents automation and does not change the Windows server package **0.9.1**. Cloud assigns its own increasing build numbers.
+- Local evidence: ignored `output/MVideo-0.10.0.xcarchive`, `output/testflight-20261003/archive.log` and `output/testflight-20261003/upload.log`.
+
 ## TestFlight delivery
 
 Dedicated app **mvideo - music videos**, App Store Connect ID **6818073365**, bundle **com.soundtrackgeek.mvideo**. The plain name mvideo was unavailable. No existing app identity was reused.
 
-Version **0.9.0 (6)** uploaded successfully at 12:41 Europe/Oslo on 2026-10-02, completed Apple processing, and was added to the existing internal **mvideo testers** group. Release testing notes were saved. App Store Connect shows one tester and five builds and reports **Installed 0.9.0 (6)** on the tester's **Apple TV 4K / tvOS 26.6**. Release confirmation is saved locally in ignored `output/testflight-0.9.0.jpg`.
+Latest delivery: **0.10.0 (7)**, accepted at **10:21:06 Europe/Oslo on 2026-10-03**, with Apple processing complete. The **mvideo testers** group's Builds tab shows **Testing** with 90 days remaining. Its Testers tab confirms **Installed 0.10.0 (7)** on **2026-10-03**, on **Apple TV 4K / tvOS 26.6**. The configured Cloud workflow's first successful automatic delivery remains unverified.
+
+Previously verified delivery: **0.9.0 (6)** uploaded successfully at 12:41 Europe/Oslo on 2026-10-02, completed Apple processing, and was added to the existing internal **mvideo testers** group. Release testing notes were saved. App Store Connect then showed one tester and five builds and reported **Installed 0.9.0 (6)** on the tester's **Apple TV 4K / tvOS 26.6**. Release confirmation is saved locally in ignored `output/testflight-0.9.0.jpg`.
 
 The requested account **jtillnes2@yahoo.com** already belonged to this Apple team and was added as a tester without changing its account permissions. The invitation was accepted previously. The owner confirmed earlier installation, pairing and working playback, supplied photos of its browsing and player UI, and reported missing artist photography after updating. The current installation is confirmed above; normalization and other recent features still need owner behavior/listening feedback on the physical device.
 
-Latest local distribution artifacts: ignored `output/MVideo-0.5.0.xcarchive` and `output/export-0.5.0/MVideo.ipa`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
+Latest local distribution artifacts: ignored `output/MVideo-0.10.0.xcarchive` and the successful upload log `output/testflight-20261003/upload.log`. [App Store Connect](https://appstoreconnect.apple.com/apps/6818073365/testflight/tvos).
 
 ## Reference and provider decisions
 
@@ -159,10 +169,11 @@ Sources checked 2026-10-01:
 | Representative seven-format playback and seeking | Passed through Windows HTTPS; originals unchanged |
 | Live Last.fm/fanart.tv and random home image | Verified for three manual identities; automatic fanart.tv matching and image bytes verified for five more artists |
 | tvOS simulator build/navigation/playback | Nineteen model/playback tests and four remote UI tests passed for 0.10.0; native system PiP needs physical-device verification |
-| Physical Apple TV | Owner-confirmed earlier pairing/basic playback; 0.9.0 (6) installed on Apple TV 4K / tvOS 26.6; normalization listening still needs feedback |
-| Signing/archive/export/upload | Passed; dedicated identity |
-| Apple processing | Complete |
-| TestFlight build/group | 0.9.0 (6) assigned; one tester/five builds; installation confirmed |
-| Requested invitation | jtillnes2@yahoo.com accepted; 0.9.0 installation confirmed by App Store Connect |
+| Physical Apple TV | Owner-confirmed playback after launcher recovery; App Store Connect confirms 0.10.0 (7) installed on Apple TV 4K / tvOS 26.6; native system PiP still needs device verification |
+| Signing/archive/export/upload | 0.10.0 (7) manual archive/upload passed; dedicated identity |
+| Apple processing | 0.10.0 (7) complete |
+| TestFlight build/group | 0.10.0 (7) Testing in mvideo testers; installation confirmed |
+| Automatic Cloud delivery | Master push workflow and internal-group post-action configured; next build 8; first successful delivery pending verification |
+| Requested invitation | jtillnes2@yahoo.com accepted; 0.10.0 installation confirmed by App Store Connect |
 
 Remaining physical-device checks: compare normalization on/off across songs, including quiet and loud sources, seeking and continuous transitions. Shared playlists, artwork and double-right skip should also be confirmed on the physical remote. A future reboot should confirm the configured boot trigger in practice.

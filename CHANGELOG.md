@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.2] - 2026-10-03
+
+### Added
+
+- Xcode Cloud workflow **TestFlight — master**, triggered by every push to `master` with no file filter, to archive the Apple TV app using Xcode 26.6 and deliver successful builds to the **mvideo testers** internal group. Newer pushes cancel older builds; the Cloud build counter starts at **8**.
+- Release documentation distinguishing the Apple TV marketing version from Cloud build numbers, with local archive/upload commands retained as a fallback.
+
+### Changed
+
+- Uploaded Apple TV **0.10.0 (7)** to App Store Connect at 10:21:06 Europe/Oslo, completed Apple processing and delivered it to **mvideo testers**. App Store Connect confirms installation on the tester's Apple TV. The first automatic Cloud delivery remains pending verification.
+
 ## [0.10.1] - 2026-10-03
 
 ### Fixed

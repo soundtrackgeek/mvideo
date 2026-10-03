@@ -275,7 +275,7 @@ App **0.10.0 (7)** adds **Go to artist** to the video playback controls. Select 
 
 The floating player has **Return to full screen**, **Play or pause**, **Go to artist** and **Stop playback** controls. Returning to full screen preserves your position. Back/Menu navigates the library while the floating player is open; in full-screen playback it closes the selection. Selecting another video or starting Play all/Shuffle replaces the current queue.
 
-Apple TV’s native **Picture in Picture** control is also supported on compatible devices. Use the system PiP controls to move the window, return to full screen or close it; closing it stops playback. While native PiP is active, mvideo also offers **Go to artist** and **Stop playback**. Native PiP availability and its system transitions require verification on a physical Apple TV. The one-step artist action uses mvideo’s in-app floating player. This source release does not update the installed TestFlight build by itself.
+Apple TV’s native **Picture in Picture** control is also supported on compatible devices. Use the system PiP controls to move the window, return to full screen or close it; closing it stops playback. While native PiP is active, mvideo also offers **Go to artist** and **Stop playback**. Native PiP availability and its system transitions require verification on a physical Apple TV. The one-step artist action uses mvideo’s in-app floating player. Install a processed build through TestFlight to receive these features; see the delivery status below.
 
 ## Apple TV and TestFlight
 
@@ -285,7 +285,17 @@ Install mvideo through its TestFlight invitation, open Tailscale on Apple TV and
 
 Open `apps/tvos/MVideo.xcodeproj` in Xcode. `apps/tvos/project.yml` regenerates the project with XcodeGen. Tests include an optional live-library suite: pair the simulator first, then run the MVideo scheme tests; otherwise live tests explicitly skip. Use normal simulator signing so Keychain works.
 
-Distribution was verified with Xcode 26.6. With the team's existing Xcode account, archive and export:
+### Automatic uploads from GitHub
+
+The Xcode Cloud workflow **TestFlight — master** starts on **every push to `master`**, including documentation and server changes; there is no file filter. It uses Xcode **26.6**, the committed `apps/tvos/MVideo.xcodeproj` project and shared **MVideo** scheme to archive for tvOS App Store distribution. A newer push cancels an older build. Apple manages signing through the existing Xcode Cloud connection to GitHub.
+
+Its TestFlight post-action delivers successful builds to the existing **mvideo testers** internal group. Monitor [TestFlight — master in Xcode Cloud](https://appstoreconnect.apple.com/teams/b1e1e3ed-bd76-448e-bf6c-7211ea008199/xcode-cloud/products/B323A525-603A-4250-8F9F-A62E0CFCC703/workflows/07226CB5-6E9A-4728-9B1D-F237016B9E9E); a source push still needs a successful archive, upload and Apple processing before a build can be installed. The first automatic Cloud delivery remains pending verification. The manual **0.10.0 (7)** upload succeeded on **2026-10-03 at 10:21:06 Europe/Oslo**, completed Apple processing, and is now available to **mvideo testers**. See [current delivery evidence](docs/implementation/VERIFICATION.md#testflight-delivery).
+
+The Apple TV marketing version remains **0.10.0**. Xcode Cloud assigns increasing build numbers starting at **8**, independently of that version and the repository's changelog version; **0.10.2** records this release-workflow change. Update `MARKETING_VERSION` in `apps/tvos/project.yml` and regenerate/commit the project when changing the app version. The Cloud workflow builds the Apple TV app; use the [Windows updater](#normalize-volume-on-apple-tv) to deploy server-package changes separately.
+
+### Manual archive and upload fallback
+
+Distribution was verified with Xcode 26.6. With the team's existing Xcode account, archive and export locally when a manual upload is needed:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
@@ -298,7 +308,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
   -allowProvisioningUpdates
 ```
 
-The export applies App Store distribution signing to the archive. For upload, use an export-options copy with `destination` set to `upload`, or Xcode Organizer. Increment the build number for each upload. Upload success, Apple processing and tester availability are separate checks.
+The export applies App Store distribution signing to the archive. For upload, use an export-options copy with `destination` set to `upload`, or Xcode Organizer. Choose an unused build number for each manual upload and coordinate it with the Xcode Cloud counter in App Store Connect. Upload success, Apple processing and tester availability are separate checks.
 
 ## Design and evidence
 
