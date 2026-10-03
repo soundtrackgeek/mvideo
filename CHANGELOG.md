@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0] - 2026-10-03
+
+### Added
+
+- Swipe right for the next playlist video or left for the previous video while full-screen playback is running with controls hidden. Paused scrubbing, open controls, Up Next and floating playback retain native navigation.
+
+### Fixed
+
+- Replace the button-only double-tap shortcut, which excluded touchpad input. Capture swipe eligibility at finger-down so AVKit revealing controls during the gesture does not cancel it.
+- Previous video now goes directly to the preceding queue item after any playback duration. At the first item it leaves playback unchanged; next on the final item finishes the selection.
+- Reject stale gestures spanning a queue transition or a change in playback presentation.
+
 ## [0.10.2] - 2026-10-03
 
 ### Added

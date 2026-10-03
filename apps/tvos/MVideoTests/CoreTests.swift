@@ -1,28 +1,7 @@
 import XCTest
-import UIKit
 @testable import MVideo
 
 final class CoreTests: XCTestCase {
-    @MainActor func testRemoteSkipFinishesLastVideoAndIgnoresUnavailablePlayback() throws {
-        let api = API(Connection(origin: try Connection.origin("https://example.com"), token: "test"))
-        let model = PlayerModel(api: api, ids: ["last"], title: "One video")
-        defer { model.stop() }
-        let coordinator = NativePlayer.Coordinator(model: model, session: PlaybackSession())
-        let tap = CompletedTapGesture()
-        coordinator.skipVideo(tap)
-        XCTAssertEqual(model.queue.current, "last", "Ignore the shortcut during preparation.")
-        model.preparing = false
-        model.error = "Playback unavailable"
-        coordinator.skipVideo(tap)
-        XCTAssertEqual(model.queue.current, "last", "Leave error-screen navigation alone.")
-        model.error = nil
-        coordinator.skipVideo(tap)
-        XCTAssertNil(model.queue.current)
-        XCTAssertTrue(model.finished)
-        XCTAssertFalse(model.preparing)
-        coordinator.skipVideo(tap)
-        XCTAssertEqual(model.queue.index, 1, "Ignore more taps after the selection finishes.")
-    }
     func testOriginDoesNotAcceptCredentialsOrPaths() throws {
         for origin in ["https://user:pass@example.com", "https://example.com/api", "https://example.com?q=1", "file:///tmp/a"] {
             XCTAssertThrowsError(try Connection.origin(origin))
@@ -81,12 +60,5 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(noYear.playbackTitle, "Prince - 1999")
         let noArtist = Video(id: "c", artist: "", title: "Song", year: 1985, thumbnail: nil, warnings: [], probeError: nil)
         XCTAssertEqual(noArtist.playbackTitle, "Song (1985)")
-    }
-}
-
-private final class CompletedTapGesture: UITapGestureRecognizer {
-    override var state: UIGestureRecognizer.State {
-        get { .ended }
-        set { }
     }
 }

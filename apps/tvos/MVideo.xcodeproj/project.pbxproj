@@ -23,6 +23,7 @@
 		AED9DC9F9E8EC7B9D3ABAC10 /* Browse.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B95EFCC1B2CC95494863F2 /* Browse.swift */; };
 		C00AAEE77A8280100CA45201 /* NavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C17C42E9315C8D6DBF4A09 /* NavigationTests.swift */; };
 		D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */; };
+		F65C2BCBD16D6BF9C050E937 /* RemoteNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F7D098BF30793360E370A81 /* RemoteNavigationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +55,7 @@
 		889C723F179117C90E0644F6 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
 		8C986A24471154D595A2E517 /* AudioNormalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioNormalization.swift; sourceTree = "<group>"; };
 		9ABFB457B76F121670806A62 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		9F7D098BF30793360E370A81 /* RemoteNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNavigationTests.swift; sourceTree = "<group>"; };
 		A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalizationTests.swift; sourceTree = "<group>"; };
 		A745957C41502FD320BE9DF3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A9B95EFCC1B2CC95494863F2 /* Browse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Browse.swift; sourceTree = "<group>"; };
@@ -73,6 +75,7 @@
 				A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */,
 				DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */,
 				7030808F0CD634B427B2003D /* PlaybackSessionTests.swift */,
+				9F7D098BF30793360E370A81 /* RemoteNavigationTests.swift */,
 				96408E54CC2CCABB146DDBBC /* Fixtures */,
 			);
 			path = MVideoTests;
@@ -287,6 +290,7 @@
 				D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */,
 				1278F86BCC59DE7210478680 /* PlaybackIntegrationTests.swift in Sources */,
 				49974BC2BAC1E0C89CFE6BC4 /* PlaybackSessionTests.swift in Sources */,
+				F65C2BCBD16D6BF9C050E937 /* RemoteNavigationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -379,7 +383,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -399,7 +403,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.10.0;
+				MARKETING_VERSION = 0.11.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -448,7 +452,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -462,7 +466,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.10.0;
+				MARKETING_VERSION = 0.11.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

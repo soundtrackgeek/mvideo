@@ -267,7 +267,7 @@ Conversions run one at a time and must finish before playback, enabling full-fil
 
 A queue snapshots all matching IDs, not just the visible page. Shuffle is a permutation without repeats. Selecting a video starts there and wraps through the rest of the same scope once. At exhaustion the app can offer replay. Deleted/unavailable items produce explicit retry/skip behavior.
 
-App 0.6.0 adds a shortcut: while a video is playing with the playback controls hidden, **double-tap the right edge of the Siri Remote touchpad** to skip to the next video. A single right tap keeps the native seek behavior. When the controls or Up Next are open, rightward input navigates them normally; **Next video** is also available in the playback controls. Skipping the last video ends the selection and offers **Play again**.
+App **0.11.0** replaces the earlier double-tap shortcut with **swipe right for the next video** and **swipe left for the previous video** in the current playlist or queue. Make a deliberate horizontal slide across the Siri Remote touchpad while full-screen playback is running and the controls are hidden; no click is needed. If controls are already open, let them fade first. Pausing retains normal timeline scrubbing, and open controls, Up Next and floating-player browsing keep normal navigation. **Previous video** and **Next video** remain available in playback controls. Previous always selects the preceding video, even after three seconds; at the first item it does nothing. Skipping the last video ends the selection and offers **Play again**. The earlier shortcut listened for directional button presses rather than light touchpad double-taps.
 
 ### Browse while watching
 
@@ -293,7 +293,7 @@ Its TestFlight post-action is configured to deliver successful builds to the exi
 
 **Automatic delivery verified on 2026-10-03:** push `0c7dd59` triggered Cloud build **10**, which completed all signing/export steps, upload, Apple processing and internal-group distribution. **0.10.0 (10)** is **Testing** for **mvideo testers**. The initial builds **8** and **9** failed because the team had no registered tvOS device for development/ad hoc profiles; registering the physical Apple TV resolved that requirement. The earlier manual **0.10.0 (7)** upload also remains available. See [current delivery evidence](docs/implementation/VERIFICATION.md#testflight-delivery).
 
-The Apple TV marketing version remains **0.10.0**. Xcode Cloud assigns increasing build numbers starting at **8**, independently of that version and the repository's changelog version; **0.10.2** records this release-workflow change. Update `MARKETING_VERSION` in `apps/tvos/project.yml` and regenerate/commit the project when changing the app version. The Cloud workflow builds the Apple TV app; use the [Windows updater](#normalize-volume-on-apple-tv) to deploy server-package changes separately.
+The Apple TV source marketing version is **0.11.0**. Xcode Cloud assigns increasing build numbers starting at **8**, independently of that version and the repository's changelog version; **0.10.2** records the release-workflow change. Update `MARKETING_VERSION` in `apps/tvos/project.yml` and regenerate/commit the project when changing the app version. The Cloud workflow builds the Apple TV app; use the [Windows updater](#normalize-volume-on-apple-tv) to deploy server-package changes separately.
 
 ### Manual archive and upload fallback
 

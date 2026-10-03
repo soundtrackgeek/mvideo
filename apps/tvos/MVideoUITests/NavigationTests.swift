@@ -55,7 +55,7 @@ final class NavigationTests: XCTestCase {
         XCTAssertFalse(mini.exists)
     }
 
-    func testDoubleRightTapSkipsExactlyOneVideo() throws {
+    func testDirectionalButtonsAndPreviousNextControls() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchEnvironment["MVIDEO_TEST_ARTIST"] = "'Til Tuesday"
@@ -84,22 +84,43 @@ final class NavigationTests: XCTestCase {
         remote.press(.left)
         remote.press(.left)
         Thread.sleep(forTimeInterval: 2)
-        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true, "Double taps on the left must not skip a video.")
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true, "Double left button presses retain native seeking.")
         Thread.sleep(forTimeInterval: 8)
         remote.press(.right)
         remote.press(.right)
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true, "Double right button presses are not touchpad swipes.")
+        remote.press(.playPause)
+        let next = app.cells["Next video"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        let actions = ["Go to artist", "Browse in mini player", "Normalize volume", "Previous video", "Next video", "Audio"]
+        let focusedAction = app.cells.matching(NSPredicate(format: "hasFocus == true AND label IN %@", actions)).firstMatch
+        for _ in 0..<3 where !focusedAction.exists { remote.press(.up) }
+        for _ in 0..<8 where !next.hasFocus { remote.press(.right) }
+        XCTAssertTrue(next.hasFocus, app.debugDescription)
+        remote.press(.select)
         expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 2 of'"), evaluatedWith: screen)
         waitForExpectations(timeout: 40)
-        Thread.sleep(forTimeInterval: 2)
+        Thread.sleep(forTimeInterval: 4)
         XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 2 of") == true)
-        saveScreenshot(app, name: "Double right tap advances exactly one video")
         remote.press(.playPause)
         Thread.sleep(forTimeInterval: 1)
         remote.press(.right)
         remote.press(.right)
         Thread.sleep(forTimeInterval: 2)
         XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 2 of") == true, "Rightward navigation with playback controls open must not skip.")
-        remote.press(.playPause)
+        remote.press(.select) // Finish native paused scrubbing before leaving the timeline.
+        let previous = app.cells["Previous video"]
+        XCTAssertTrue(previous.exists)
+        for _ in 0..<3 where !focusedAction.exists { remote.press(.up) }
+        // Start at the first transport action, then move right to Previous.
+        for _ in 0..<8 { remote.press(.left) }
+        for _ in 0..<8 where !previous.hasFocus { remote.press(.right) }
+        XCTAssertTrue(previous.hasFocus, app.debugDescription)
+        remote.press(.select)
+        expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 1 of'"), evaluatedWith: screen)
+        waitForExpectations(timeout: 40)
+        saveScreenshot(app, name: "Previous returns to the preceding video after three seconds")
         remote.press(.menu)
         XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 10))
     }

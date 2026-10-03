@@ -179,7 +179,10 @@ struct QueueCursor: Equatable {
         }
     }
     func next() { queue.next(); start() }
-    func previous() { if player.currentTime().seconds > 3 { player.seek(to: .zero) } else { queue.previous(); start() } }
+    func previous() {
+        guard queue.hasPrevious else { return }
+        queue.previous(); start()
+    }
     func replay() { queue.restart(); start() }
     func select(_ id: String) { if let index = queue.ids.firstIndex(of: id) { queue.move(to: index); start() } }
     func stop() {
@@ -331,6 +334,18 @@ struct PlaybackScreen: View {
         .focusSection()
     }
 }
+// Keep the playback context from finger-down: AVKit can reveal its controls
+// during the same swipe, before UIKit recognizes the horizontal movement.
+class PlaylistSwipeGestureRecognizer: UISwipeGestureRecognizer {
+    var startingItem: AVPlayerItem?
+    var startingIndex: Int?
+    override func reset() {
+        super.reset()
+        startingItem = nil
+        startingIndex = nil
+    }
+}
+
 struct NativePlayer: UIViewControllerRepresentable {
     let model: PlayerModel
     let session: PlaybackSession
@@ -343,7 +358,7 @@ struct NativePlayer: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = true
         controller.delegate = context.coordinator
         context.coordinator.controller = controller
-        controller.view.addGestureRecognizer(context.coordinator.skipGesture)
+        for gesture in context.coordinator.playlistGestures { controller.view.addGestureRecognizer(gesture) }
         return controller
     }
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
@@ -352,7 +367,9 @@ struct NativePlayer: UIViewControllerRepresentable {
         controller.showsPlaybackControls = fullScreen
         controller.view.isUserInteractionEnabled = fullScreen
         context.coordinator.updateFocus(fullScreen: fullScreen)
-        context.coordinator.skipGesture.isEnabled = fullScreen && !model.preparing && model.error == nil && !model.finished
+        for gesture in context.coordinator.playlistGestures {
+            gesture.isEnabled = fullScreen && !model.preparing && model.error == nil && !model.finished
+        }
         var actions: [UIMenuElement] = []
         if model.currentArtist != nil {
             actions.append(UIAction(title: "Go to artist", image: UIImage(systemName: "person.crop.rectangle")) { _ in session.showArtist() })
@@ -361,7 +378,8 @@ struct NativePlayer: UIViewControllerRepresentable {
         controller.transportBarCustomMenuItems = actions + [
             UIAction(title: "Normalize volume", image: UIImage(systemName: "waveform"),
                      state: model.normalizationEnabled ? .on : .off) { _ in model.toggleNormalization() },
-            UIAction(title: "Previous video", image: UIImage(systemName: "backward.end.fill")) { _ in model.previous() },
+            UIAction(title: "Previous video", image: UIImage(systemName: "backward.end.fill"),
+                     attributes: model.queue.hasPrevious ? [] : .disabled) { _ in model.previous() },
             UIAction(title: "Next video", image: UIImage(systemName: "forward.end.fill")) { _ in model.next() }
         ]
         let queue = UIHostingController(rootView: UpNextView(model: model))
@@ -370,7 +388,7 @@ struct NativePlayer: UIViewControllerRepresentable {
         controller.customInfoViewControllers = [queue]
     }
     static func dismantleUIViewController(_ controller: AVPlayerViewController, coordinator: Coordinator) {
-        controller.view.removeGestureRecognizer(coordinator.skipGesture)
+        for gesture in coordinator.playlistGestures { controller.view.removeGestureRecognizer(gesture) }
         controller.delegate = nil
         coordinator.controller = nil
     }
@@ -393,32 +411,43 @@ struct NativePlayer: UIViewControllerRepresentable {
                 root.updateFocusIfNeeded()
             }
         }
-        lazy var skipGesture: UITapGestureRecognizer = {
-            let gesture = UITapGestureRecognizer(target: self, action: #selector(skipVideo(_:)))
-            gesture.name = "Double tap right to skip video"
-            gesture.numberOfTapsRequired = 2
-            // tvOS delivers directional remote taps as arrow presses. Raw indirect
-            // touches have relative coordinates and must not trigger this shortcut.
-            gesture.allowedPressTypes = [NSNumber(value: UIPress.PressType.rightArrow.rawValue)]
-            gesture.allowedTouchTypes = []
+        lazy var nextGesture = makeSwipe(direction: .right)
+        lazy var previousGesture = makeSwipe(direction: .left)
+        var playlistGestures: [PlaylistSwipeGestureRecognizer] { [nextGesture, previousGesture] }
+        private func makeSwipe(direction: UISwipeGestureRecognizer.Direction) -> PlaylistSwipeGestureRecognizer {
+            let gesture = PlaylistSwipeGestureRecognizer(target: self, action: #selector(changeVideo(_:)))
+            gesture.name = direction == .right ? "Swipe right for next video" : "Swipe left for previous video"
+            gesture.direction = direction
+            gesture.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirect.rawValue)]
+            gesture.allowedPressTypes = []
+            gesture.cancelsTouchesInView = false
             gesture.delegate = self
             return gesture
-        }()
+        }
         init(model: PlayerModel, session: PlaybackSession) { self.model = model; self.session = session }
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive press: UIPress) -> Bool {
-            // Leave rapid rightward navigation in the transport bar and Up Next alone.
-            guard session.isFullScreen, !transportBarVisible, !model.preparing, model.error == nil, !model.finished,
+        private var canChangeVideo: Bool {
+            session.model === model && session.isFullScreen && !pictureInPictureStarting &&
+                !model.preparing && model.error == nil && !model.finished
+        }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            // Decide at finger-down, not completion. Paused scrubbing, menus,
+            // the mini player and Up Next keep their normal touch behavior.
+            guard let swipe = gestureRecognizer as? PlaylistSwipeGestureRecognizer,
+                  touch.type == .indirect, canChangeVideo, !transportBarVisible, model.player.rate > 0,
+                  let item = model.player.currentItem,
                   controller?.presentedViewController == nil else { return false }
             if let controller, let focusedView = UIFocusSystem.focusSystem(for: controller)?.focusedItem as? UIView,
                controller.customInfoViewControllers.contains(where: { info in
                    info.viewIfLoaded.map { focusedView.isDescendant(of: $0) } ?? false
                }) { return false }
+            swipe.startingItem = item
+            swipe.startingIndex = model.queue.index
             return true
         }
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            // Give the double tap priority over AVKit's single right-tap seek.
-            guard let tap = otherGestureRecognizer as? UITapGestureRecognizer else { return false }
-            return tap.numberOfTapsRequired == 1 && tap.allowedPressTypes.contains(NSNumber(value: UIPress.PressType.rightArrow.rawValue))
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // AVKit's touch/pan recognizers may reveal controls during a swipe.
+            // They must not cancel a playlist swipe that started with controls hidden.
+            gestureRecognizer is PlaylistSwipeGestureRecognizer
         }
         func playerViewController(_ playerViewController: AVPlayerViewController, willTransitionToVisibilityOfTransportBar visible: Bool, with coordinator: AVPlayerViewControllerAnimationCoordinator) {
             transportBarVisible = visible
@@ -457,9 +486,15 @@ struct NativePlayer: UIViewControllerRepresentable {
                 completionHandler(true)
             }
         }
-        @objc func skipVideo(_ gesture: UITapGestureRecognizer) {
-            guard gesture.state == .ended, !model.preparing, model.error == nil, !model.finished else { return }
-            model.next()
+        @objc func changeVideo(_ gesture: PlaylistSwipeGestureRecognizer) {
+            guard gesture.state == .ended, canChangeVideo,
+                  let item = gesture.startingItem, item === model.player.currentItem,
+                  gesture.startingIndex == model.queue.index else { return }
+            // Consume once, and ignore a swipe spanning automatic-next or a new selection.
+            gesture.startingItem = nil
+            gesture.startingIndex = nil
+            if gesture.direction == .right { model.next() }
+            else if gesture.direction == .left { model.previous() }
         }
     }
 }
