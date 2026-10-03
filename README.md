@@ -287,7 +287,7 @@ Open `apps/tvos/MVideo.xcodeproj` in Xcode. `apps/tvos/project.yml` regenerates 
 
 ### Automatic uploads from GitHub
 
-The Xcode Cloud workflow **TestFlight — master** starts on **every push to `master`**, including documentation and server changes; there is no file filter. It uses Xcode **26.6**, the committed `apps/tvos/MVideo.xcodeproj` project and shared **MVideo** scheme to archive for tvOS App Store distribution. A newer push cancels an older build. Apple manages signing through the existing Xcode Cloud connection to GitHub.
+The Xcode Cloud workflow **TestFlight — master** starts on **every push to `master`**, including documentation and server changes; there is no file filter. It uses Xcode **26.6**, the committed `apps/tvos/MVideo.xcodeproj` project and shared **MVideo** scheme to archive for tvOS **TestFlight (Internal Testing Only)** distribution. A newer push cancels an older build. Apple manages signing through the existing Xcode Cloud connection to GitHub.
 
 Its TestFlight post-action delivers successful builds to the existing **mvideo testers** internal group. Monitor [TestFlight — master in Xcode Cloud](https://appstoreconnect.apple.com/teams/b1e1e3ed-bd76-448e-bf6c-7211ea008199/xcode-cloud/products/B323A525-603A-4250-8F9F-A62E0CFCC703/workflows/07226CB5-6E9A-4728-9B1D-F237016B9E9E); a source push still needs a successful archive, upload and Apple processing before a build can be installed. The first automatic Cloud delivery remains pending verification. The manual **0.10.0 (7)** upload succeeded on **2026-10-03 at 10:21:06 Europe/Oslo**, completed Apple processing, and is now available to **mvideo testers**. See [current delivery evidence](docs/implementation/VERIFICATION.md#testflight-delivery).
 
