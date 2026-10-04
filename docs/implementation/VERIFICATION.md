@@ -1,8 +1,8 @@
-# Verification — updated 2026-10-03
+# Verification — updated 2026-10-04
 
 ## Installed Windows service
 
-The independent mvideo **0.9.1** service uses the Python environment at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. The current package was built from the Windows checkout and installed as a wheel; the older service source directory is no longer the imported editable package.
+The independent mvideo **0.12.0** service uses the Python environment at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. The current package was built on Windows from committed release `72705ce`, staged at `L:\mvideo-service\deployments\0.12.0-72705ce`, and installed as a wheel; the older service source directory is no longer the imported editable package.
 
 The **mvideo Library** scheduled task is running as Local Service (`S-1-5-19`) with an `MSFT_TaskBootTrigger`, 30-second startup delay, failure restart and no execution time limit. It requires no interactive login. State/code ACLs and encrypted machine-DPAPI provider loading were installed with owner-approved administrator access. A fresh task launch and HTTPS health response passed. An actual Windows reboot was not performed. Tailscale's Windows service is Automatic.
 
@@ -125,6 +125,16 @@ Home chooses a random available background from matched library artists once per
 - The existing live playback/seek/automatic-next test passed against Windows. A Home UI attempt before deployment failed to load its first video within 20 seconds; after deployment the complete Home → playback → artist → full-screen UI test passed. The new live Home/queue test passed without skips: Home took 4.14 seconds, the 15,558-video queue 0.43 seconds, and **'Til Tuesday — (Believed You Were) Lucky** playback preparation 0.029 seconds. Timing logs contain no session credentials or ticketed URLs.
 - After the first task start, the owner confirmed browsing returned but reported playback request timeouts. After deployment, service restart and fully reopening mvideo, the owner confirmed **playback starts on the physical Apple TV**. The precise cause of those transient request timeouts is not established separately from recovery; the reproduced launcher defect is fixed, while the original stderr trigger remains unknown.
 - Local evidence is in ignored `output/incident-20261003/`: initial task/configuration diagnostics, Windows regression results, deployment verification, query timings, native playback and Home UI test logs/results.
+
+## 0.12.0 automatic ingestion deployment — 2026-10-04
+
+- Deployed committed release **72705ce** through the existing updater in the Windows administrator PowerShell 7 session. Staged source separately from `C:\_code\mvideo`, preserving that checkout's local edits. Windows built the server and dependency wheels, installed **mvideo-server 0.12.0 / watchdog 6.0.0**, and restarted the existing **mvideo Library** task successfully. The task was Running and live verification completed at **11:36:53 Europe/Oslo**.
+- Before installation, SQLite online backup created `C:\ProgramData\mvideo\backups\before-0.12.0-20261004T093631Z-063eefb0.sqlite3` (**28,712,960 bytes**); `PRAGMA quick_check` returned `ok`. The update retained 15,981 available / 15,993 total catalog rows, revision 16,184, four paired sessions, and all saved loudness rows. No source media or provider configuration was changed.
+- The default polling watcher reports **watching**. Startup scanning completed across **15,981 videos**, with **0 changed, missing, pending, deferred or inaccessible**. The background loudness worker is idle with no queued jobs. Available-video loudness coverage is **15,964 measured / 17 errors / 0 pending / 0 stale**. The 17 existing failures were not retried as part of deployment.
+- Both loopback and private HTTPS report **0.12.0**. Authenticated Home returned 48 videos and Shuffle returned **15,981 distinct IDs** on both routes. Home took **24 ms / 14 ms**, full Shuffle **55 ms / 61 ms**, and status **168 ms / 186 ms** for loopback / HTTPS respectively. The temporary diagnostic session was removed, and both routes then rejected it with 401; the original four sessions remained.
+- **All 148 server tests passed on Windows, zero skips**, in **40.08 seconds**, using the installed service wheel and Python with the configured FFmpeg tools. This includes polling detection, file stability, durable jobs, exact-ID processing, shared locks, generated-media FFmpeg ingestion, cancellation, metadata override races, filename repairs and playback regression coverage. Only existing Starlette and Windows `PurePath.is_reserved()` deprecation warnings were reported. The four local mocked updater PowerShell checks also passed.
+- No production media was added solely for verification. Production watcher readiness and catalog preservation are established; new-file ingestion is covered by isolated generated-media tests. No reboot or new physical Apple TV playback test was performed for this release; Apple TV library refresh remains manual.
+- Credential-free deployment evidence is in ignored `output/deployment-012/baseline.json`, `verification.json`, `deployment.log` and `windows-tests.log`, with Windows originals under the staged release directory.
 
 ## 0.11.2 catalog request stalls — 2026-10-04
 

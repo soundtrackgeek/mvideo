@@ -15,7 +15,9 @@
 - Before probing new or changed files, compare size and mtime across two observations and again around probing. Defer changing files; completed files should still be staged outside the library and moved atomically because a paused copy can pass this stability heuristic.
 - Read existing catalog scan metadata in one batch and write only entries requiring updates, avoiding per-file database reads for unchanged files.
 - Routine additions now use copy, wait for automatic indexing/measurement, then reload Apple TV. Manual bulk measurement, retry and `--force` commands remain available.
-- Server package version is 0.12.0. The compatible Apple TV app remains 0.11.1; live library refresh from improvement 2 is deferred. Source release and Windows deployment remain separate steps.
+- Server package version is 0.12.0. The compatible Apple TV app remains 0.11.1; live library refresh from improvement 2 is deferred.
+- Deployed commit `72705ce` to the Windows service after an integrity-checked SQLite backup. The scheduled task is running, the polling watcher is active, and the startup scan completed across 15,981 videos without pending, deferred or inaccessible files. Local and private HTTPS health, Home and full Shuffle checks passed; existing measurements and paired sessions were retained.
+- All 148 server tests passed on Windows with zero skips, including real FFmpeg ingestion and cancellation; all four local updater PowerShell checks passed.
 
 ## [0.11.2] - 2026-10-04
 

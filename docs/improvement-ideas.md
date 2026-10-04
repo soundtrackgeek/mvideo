@@ -1,6 +1,6 @@
 # mvideo: improvement and feature ideas
 
-Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is now implemented in **server 0.12.0 source**; the remaining entries are proposals. Windows deployment is separate from this source update. Library figures come from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses.
+Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is now implemented and deployed on Windows as **server 0.12.0**; the remaining entries are proposals. The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
 
 **Effort:** **S** ≈ a day · **M** ≈ several days · **L** ≈ a week or more. **Impact** is a judgement of how much the change affects day-to-day use of the library.
 
@@ -20,7 +20,7 @@ If only a handful of these get done, these give the most for the effort:
 
 ### 1. Adding new videos (index → measure → reload)
 
-**Implemented in server 0.12.0 source:** Routine additions are now copy completed files, wait for indexing and audio analysis, then reload Apple TV. See the [updated operating procedure](../README.md#adding-replacing-or-renaming-music-videos).
+**Implemented and deployed in server 0.12.0:** Routine additions are now copy completed files, wait for indexing and audio analysis, then reload Apple TV. See the [updated operating procedure](../README.md#adding-replacing-or-renaming-music-videos).
 
 - A `watchdog` polling observer checks every 15 seconds by default, including on SMB mounts. Notifications are coalesced for 5 seconds before scanning. Native filesystem events and an off mode are configurable, and startup/30-minute scans remain a fallback.
 - Every catalog scan records exactly the new or changed IDs in a durable `loudness_jobs` queue, including scans run from the CLI. A service worker reuses `LoudnessScanner` to measure one video at a time at low priority with the shared `loudness.lock`. Pending jobs survive restart; failed results are saved without an endless automatic retry loop. The CLI remains available for bulk analysis, retries and `--force` runs.
@@ -28,7 +28,7 @@ If only a handful of these get done, these give the most for the effort:
 - Scans load existing catalog metadata in one batch, avoiding per-file database reads for unchanged files, and write only entries needing updates.
 - Authenticated `/api/status` includes ingestion watcher/worker state, pending job count and loudness coverage. Watch mode, polling interval and stability interval are configurable; `--scan-interval 0` disables startup/periodic scans independently of the watcher.
 
-**Remaining:** Apple TV library refresh is still manual. Live refresh belongs to improvement 2 and is deferred. This source update does not establish Windows deployment or device verification.
+**Remaining:** Apple TV library refresh is still manual. Live refresh belongs to improvement 2 and is deferred. Windows deployment and live API checks passed on 2026-10-04; no new physical Apple TV verification was performed for this server release.
 
 **Impact:** High
 
@@ -596,7 +596,7 @@ If only a handful of these get done, these give the most for the effort:
    - Batch Up Next endpoint
    - Automatic loading on scroll
 2. **Foundations (M):**
-   - Automatic loudness measurement and file watching: implemented in server 0.12.0 source
+   - Automatic loudness measurement and file watching: implemented and deployed in server 0.12.0
    - Live Apple TV refresh over Server-Sent Events
    - Pre-converting non-direct videos
    - Nuke image loading
