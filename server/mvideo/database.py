@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS audio_loudness(
  integrated_lufs REAL, true_peak_dbtp REAL, loudness_range_lu REAL, threshold_lufs REAL,
  audio_stream_index INTEGER, ffmpeg_version TEXT NOT NULL, measured_at INTEGER NOT NULL, error TEXT
 );
+CREATE TABLE IF NOT EXISTS loudness_jobs(
+ video_id TEXT PRIMARY KEY, size INTEGER NOT NULL, mtime INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS filename_renames(
  id INTEGER PRIMARY KEY, old_id TEXT NOT NULL, new_id TEXT NOT NULL,
  old_path TEXT NOT NULL, new_path TEXT NOT NULL,

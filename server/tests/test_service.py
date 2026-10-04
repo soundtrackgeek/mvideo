@@ -14,7 +14,7 @@ PROBE={'format':{'format_name':'mov,mp4,m4a,3gp,3g2,mj2','duration':'10'},'strea
 @pytest.fixture
 def service(tmp_path):
     root=tmp_path/'media';root.mkdir()
-    app=create_app(Settings(root,tmp_path/'state'))
+    app=create_app(Settings(root,tmp_path/'state',file_stability_seconds=0))
     app.state.library.probe=lambda path: PROBE
     yield app,TestClient(app),root
     app.state.playback.close()

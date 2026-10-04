@@ -1,8 +1,10 @@
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -16,7 +18,7 @@ from mvideo.loudness import ANALYSIS_VERSION, LoudnessScanner, parse_measurement
 def scanner(tmp_path):
     root = tmp_path / 'media'
     root.mkdir()
-    settings = Settings(root, tmp_path / 'state')
+    settings = Settings(root, tmp_path / 'state', file_stability_seconds=0)
     settings.prepare()
     return LoudnessScanner(settings, Database(settings.state / 'library.sqlite3'))
 
@@ -66,6 +68,170 @@ def test_resume_force_changed_sources_and_analysis_version(scanner, monkeypatch)
     assert scanner.run()['measured'] == 1
     assert calls[-1] == second
     assert scanner.status()['measured'] == 2
+
+
+def test_targeted_scan_only_uses_requested_ids_and_preserves_cache_and_limit(scanner, monkeypatch):
+    first, _ = add_video(scanner, 'First')
+    second, _ = add_video(scanner, 'Second')
+    third, _ = add_video(scanner, 'Third')
+    calls = fake_analysis(scanner, monkeypatch)
+    def all_ids():
+        pytest.fail('Targeted scanning must not enumerate the whole catalog')
+    monkeypatch.setattr(scanner.library, 'ids', all_ids)
+    summary = scanner.run(ids=iter([second, second, third]), limit=1)
+    assert summary['measured'] == summary['processed'] == 1
+    assert calls == [second]
+    assert scanner.status()['pending'] == 2
+    summary = scanner.run(ids=[second, third], limit=1)
+    assert summary['cached'] == summary['measured'] == 1
+    assert calls == [second, third]
+    assert scanner.run(ids=[second], force=True)['measured'] == 1
+    assert calls == [second, third, second]
+    assert scanner.run(ids=[])['processed'] == 0
+    assert scanner.run(ids=['missing'])['deferred'] == 1
+    assert scanner.current(scanner.library.get(first)) is False
+
+
+def test_targeted_scan_lock_contention_does_not_process_or_mutate(scanner, monkeypatch):
+    identity, _ = add_video(scanner)
+    calls = fake_analysis(scanner, monkeypatch)
+    with scan_lock(scanner.settings.state / 'loudness.lock'):
+        with pytest.raises(RuntimeError, match='Another loudness scan'):
+            scanner.run(ids=[identity], stop_event=threading.Event())
+    assert calls == []
+    assert scanner.status()['pending'] == 1
+    assert scanner.run(ids=[identity])['measured'] == 1
+
+
+@pytest.mark.parametrize('cancel', ['before', 'during', None])
+def test_targeted_runs_never_query_full_catalog_status(scanner, monkeypatch, cancel):
+    identity, _ = add_video(scanner)
+    monkeypatch.setattr(scanner, 'preflight', lambda: None)
+    def status():
+        pytest.fail('Targeted runs must not aggregate the full catalog')
+    monkeypatch.setattr(scanner, 'status', status)
+    stopped = threading.Event()
+    def measure(path, row, timeout, *, stop_event):
+        if cancel == 'during':
+            stop_event.set()
+        return result()
+    monkeypatch.setattr(scanner, 'measure', measure)
+    if cancel == 'before':
+        stopped.set()
+    summary = scanner.run(ids=[identity], stop_event=stopped)
+    assert 'catalog' not in summary
+    assert summary['state'] == ('cancelled' if cancel else 'finished')
+
+
+def test_preflight_reuses_capabilities_but_checks_library_availability(scanner, monkeypatch):
+    first, _ = add_video(scanner, 'First')
+    second, _ = add_video(scanner, 'Second')
+    commands = []
+    def run(args, **kwargs):
+        commands.append(args)
+        stdout = b' loudnorm ' if args[-1] == '-filters' else b'ffmpeg version test\n'
+        return subprocess.CompletedProcess(args, 0, stdout=stdout)
+    monkeypatch.setattr(subprocess, 'run', run)
+    monkeypatch.setattr(scanner, 'measure', lambda *args: result())
+    assert scanner.run(ids=[first])['measured'] == 1
+    assert scanner.run(ids=[second])['measured'] == 1
+    summary = scanner.run()
+    assert summary['cached'] == summary['catalog']['measured'] == 2
+    assert [args[-1] for args in commands] == ['-filters', '-version']
+    assert scanner.ffmpeg_version == 'ffmpeg version test'
+    scanner.settings.library.rename(scanner.settings.library.with_name('offline'))
+    with pytest.raises(FileNotFoundError):
+        scanner.run(ids=[first])
+    assert scanner.status()['measured'] == 2
+
+
+@pytest.mark.parametrize('failure', ['filters', 'version'])
+def test_failed_preflight_is_retried(scanner, monkeypatch, failure):
+    attempts = {'filters': 0, 'version': 0}
+    def run(args, **kwargs):
+        stage = args[-1].removeprefix('-')
+        attempts[stage] += 1
+        if attempts[stage] == 1 and stage == failure:
+            raise subprocess.CalledProcessError(1, args)
+        stdout = b' loudnorm ' if stage == 'filters' else b'ffmpeg version test\n'
+        return subprocess.CompletedProcess(args, 0, stdout=stdout)
+    monkeypatch.setattr(subprocess, 'run', run)
+    with pytest.raises(subprocess.CalledProcessError):
+        scanner.preflight()
+    assert not scanner._preflight_complete
+    scanner.preflight()
+    scanner.preflight()
+    assert attempts == {'filters': 2, 'version': 1 if failure == 'filters' else 2}
+
+
+def test_cancellation_keeps_completed_work_and_interrupted_video_pending(scanner, monkeypatch):
+    first, _ = add_video(scanner, 'First')
+    second, _ = add_video(scanner, 'Second')
+    fake_analysis(scanner, monkeypatch)
+    stopped = threading.Event()
+    def measure(path, row, timeout, *, stop_event):
+        assert stop_event is stopped
+        if row['id'] == second:
+            stopped.set()
+        return result()
+    monkeypatch.setattr(scanner, 'measure', measure)
+    summary = scanner.run(ids=[first, second], stop_event=stopped)
+    assert summary['state'] == 'cancelled'
+    assert summary['processed'] == summary['measured'] == 1
+    assert summary['error'] == 0
+    assert scanner.status()['pending'] == 1
+    assert scanner.current(scanner.library.get(first))
+    with scan_lock(scanner.settings.state / 'loudness.lock'):
+        pass
+    calls = fake_analysis(scanner, monkeypatch)
+    assert scanner.run(ids=[second])['measured'] == 1
+    assert calls == [second]
+
+
+def test_already_cancelled_scan_skips_preflight_and_keeps_measurements(scanner, monkeypatch):
+    identity, _ = add_video(scanner)
+    fake_analysis(scanner, monkeypatch)
+    scanner.run(ids=[identity])
+    def preflight():
+        pytest.fail('Cancelled scans must not launch FFmpeg')
+    monkeypatch.setattr(scanner, 'preflight', preflight)
+    stopped = threading.Event()
+    stopped.set()
+    summary = scanner.run(ids=[identity], force=True, stop_event=stopped)
+    assert summary['state'] == 'cancelled' and summary['processed'] == 0
+    assert scanner.status()['measured'] == 1
+
+
+@pytest.mark.parametrize('cancel', [True, False])
+def test_background_decode_stops_child_on_cancellation_or_timeout(scanner, monkeypatch, cancel):
+    identity, _ = add_video(scanner)
+    monkeypatch.setattr(scanner, 'preflight', lambda: None)
+    stopped = threading.Event()
+    popen = subprocess.Popen
+    children = []
+    commands = []
+    def start(args, **kwargs):
+        commands.append((args, kwargs))
+        child = popen([sys.executable, '-c', 'import time; time.sleep(60)'], **kwargs)
+        children.append(child)
+        if cancel:
+            stopped.set()
+        return child
+    monkeypatch.setattr(subprocess, 'Popen', start)
+    monkeypatch.setattr(shutil, 'which', lambda executable: '/usr/bin/nice')
+    summary = scanner.run(ids=[identity], timeout=.05, stop_event=stopped)
+    assert len(children) == 1 and children[0].poll() is not None
+    assert 'preexec_fn' not in commands[0][1]
+    if os.name != 'nt':
+        assert commands[0][0][:3] == ['/usr/bin/nice', '-n', '10']
+    if cancel:
+        assert summary['state'] == 'cancelled' and summary['processed'] == 0
+        assert scanner.status()['pending'] == 1 and scanner.status()['error'] == 0
+    else:
+        assert summary['state'] == 'finished' and summary['error'] == 1
+        with scanner.database.connect() as db:
+            saved = db.execute('SELECT error FROM audio_loudness WHERE video_id=?', (identity,)).fetchone()
+        assert 'timed out' in saved['error']
 
 
 def test_errors_continue_retry_and_silence_is_cached(scanner, monkeypatch):
@@ -248,6 +414,8 @@ def test_real_audio_levels_first_track_silence_and_source_preservation(scanner):
     assert rows['No audio']['status'] == 'no_audio'
     assert all(row['analysis_version'] == ANALYSIS_VERSION and row['ffmpeg_version'].startswith('ffmpeg version') for row in rows.values())
     assert scanner.run()['cached'] == 5
+    assert scanner.run(ids=[rows['Quiet']['video_id']], force=True,
+                       stop_event=threading.Event())['measured'] == 1
     after = {p.name: (hashlib.sha256(p.read_bytes()).hexdigest(), p.stat().st_mtime_ns)
              for p in scanner.settings.library.iterdir()}
     assert before == after

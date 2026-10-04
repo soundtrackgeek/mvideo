@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0] - 2026-10-04
+
+### Added
+
+- Automatic library change detection with an SMB-compatible polling watcher by default, a native filesystem watcher option, and a configurable polling interval. Notifications are coalesced before scanning; startup and periodic scans remain available as a fallback.
+- Durable loudness jobs for exactly the new or changed video IDs from every catalog scan, including separate CLI scans. The service measures one video at a time at low priority, shares the CLI loudness lock, resumes pending jobs after restart and saves per-file failures without retrying them indefinitely.
+- Ingestion watcher/worker state, pending loudness job count and loudness coverage in the authenticated `/api/status` response.
+- Configuration through `MVIDEO_WATCH_MODE`, `MVIDEO_WATCH_INTERVAL`, `MVIDEO_FILE_STABILITY_SECONDS` and the `serve --watch-mode` override. `serve --scan-interval` defaults to 1,800 seconds; setting it to `0` disables startup/periodic scans independently of the watcher.
+- Windows updater stages the server wheel and dependency wheels before stopping the task, then installs missing dependencies from the staged files and reinstalls the server. Existing installations receive the new `watchdog` dependency during the update.
+
+### Changed
+
+- Before probing new or changed files, compare size and mtime across two observations and again around probing. Defer changing files; completed files should still be staged outside the library and moved atomically because a paused copy can pass this stability heuristic.
+- Read existing catalog scan metadata in one batch and write only entries requiring updates, avoiding per-file database reads for unchanged files.
+- Routine additions now use copy, wait for automatic indexing/measurement, then reload Apple TV. Manual bulk measurement, retry and `--force` commands remain available.
+- Server package version is 0.12.0. The compatible Apple TV app remains 0.11.1; live library refresh from improvement 2 is deferred. Source release and Windows deployment remain separate steps.
+
 ## [0.11.2] - 2026-10-04
 
 ### Fixed

@@ -190,6 +190,10 @@ class FilenameRepair:
                                parsed['raw_name'], json.dumps(parsed['warnings']), old_id))
             db.execute('UPDATE playlist_items SET video_id=? WHERE video_id=?', (new_id, old_id))
             db.execute('UPDATE audio_loudness SET video_id=? WHERE video_id=?', (new_id, old_id))
+            db.execute('''INSERT INTO loudness_jobs(video_id,size,mtime)
+                SELECT ?,size,mtime FROM loudness_jobs WHERE video_id=?
+                ON CONFLICT(video_id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime''', (new_id, old_id))
+            db.execute('DELETE FROM loudness_jobs WHERE video_id=?', (old_id,))
             db.execute('UPDATE overrides SET id=? WHERE id=?', (new_id, old_id))
             override = db.execute('SELECT artist,title,year FROM overrides WHERE id=?', (new_id,)).fetchone()
             if override:

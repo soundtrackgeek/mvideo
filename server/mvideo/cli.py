@@ -5,6 +5,7 @@ import subprocess
 import sqlite3
 import sys
 import uuid
+from dataclasses import replace
 from pathlib import Path
 from dotenv import load_dotenv
 from .config import Settings
@@ -32,26 +33,23 @@ def main():
     identity=sub.add_parser('identity'); identity.add_argument('artist'); identity.add_argument('mbid')
     override=sub.add_parser('override'); override.add_argument('id'); override.add_argument('--artist'); override.add_argument('--title',required=True); override.add_argument('--year',type=int)
     serve=sub.add_parser('serve'); serve.add_argument('--host',default='127.0.0.1'); serve.add_argument('--port',type=int,default=8765)
-    serve.add_argument('--scan-interval',type=int,default=0,help='Scan at startup and every N seconds (0 disables automatic scans)')
+    serve.add_argument('--scan-interval',type=int,default=1800,help='Scan at startup and every N seconds (0 disables startup/periodic scans)')
+    serve.add_argument('--watch-mode',choices=['polling','native','off'],help='Filesystem watcher (default: MVIDEO_WATCH_MODE or polling)')
     args=parser.parse_args()
     if args.command=='measure-loudness' and ((args.limit is not None and args.limit < 1) or args.timeout < 1):
         parser.error('Loudness limit and timeout must be positive')
+    if args.command=='serve' and args.scan_interval != 0 and args.scan_interval < 60:
+        parser.error('Scan interval must be at least 60 seconds, or 0 to disable')
     if args.env:load_dotenv(args.env,override=False)
-    settings=Settings.from_env(); settings.prepare()
+    settings=Settings.from_env()
+    if args.command=='serve' and args.watch_mode:
+        settings=replace(settings,watch_mode=args.watch_mode)
+    settings.prepare()
     database=Database(settings.state/'library.sqlite3')
     if args.command=='serve':
         import uvicorn
         from .api import create_app
-        app=create_app(settings)
-        if args.scan_interval:
-            if args.scan_interval < 60: parser.error('Scan interval must be at least 60 seconds')
-            import threading
-            import time
-            def scan_loop():
-                while True:
-                    app.state.library.scan()
-                    time.sleep(args.scan_interval)
-            threading.Thread(target=scan_loop,daemon=True,name='mvideo-scan').start()
+        app=create_app(settings,scan_interval=args.scan_interval)
         uvicorn.run(app,host=args.host,port=args.port,access_log=False,log_level='warning')
     elif args.command=='scan':print(json.dumps(Library(settings,database).scan()))
     elif args.command=='fix-filenames':

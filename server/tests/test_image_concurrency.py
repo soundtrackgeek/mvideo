@@ -15,7 +15,7 @@ from mvideo.config import Settings
 def image_service(tmp_path):
     root = tmp_path/'media'; root.mkdir()
     (root/'Band - Song (2000).mp4').write_bytes(b'x')
-    app = create_app(Settings(root, tmp_path/'state'))
+    app = create_app(Settings(root, tmp_path/'state', file_stability_seconds=0))
     app.state.library.probe = lambda path: {'format': {'duration': '10'}, 'streams': []}
     app.state.library.scan()
     token = app.state.auth.pair(app.state.auth.pair_code())

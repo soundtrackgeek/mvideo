@@ -12,7 +12,7 @@ from mvideo.metadata import Metadata
 
 def test_partial_scan_and_cross_process_lock(tmp_path, monkeypatch):
     root = tmp_path/'media'; root.mkdir()
-    settings = Settings(root, tmp_path/'state'); settings.prepare()
+    settings = Settings(root, tmp_path/'state', file_stability_seconds=0); settings.prepare()
     db = Database(settings.state/'library.sqlite3')
     first = Library(settings, db); second = Library(settings, db)
     first.probe = lambda _: {'streams':[]}
@@ -48,7 +48,7 @@ def test_metadata_identity_and_verified_name_fallback(tmp_path, monkeypatch):
 @pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg integration dependency unavailable')
 def test_real_remux_and_anamorphic_conversion(tmp_path):
     root = tmp_path/'media'; root.mkdir()
-    settings = Settings(root, tmp_path/'state'); settings.prepare()
+    settings = Settings(root, tmp_path/'state', file_stability_seconds=0); settings.prepare()
     db = Database(settings.state/'library.sqlite3'); library = Library(settings, db)
     def make(name, codec, extra):
         subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','testsrc2=size=720x576:rate=25',

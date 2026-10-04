@@ -19,7 +19,7 @@ from mvideo.parsing import parse_filename
 def repair(tmp_path):
     root = tmp_path / 'media'
     root.mkdir()
-    settings = Settings(root, tmp_path / 'state')
+    settings = Settings(root, tmp_path / 'state', file_stability_seconds=0)
     settings.prepare()
     repair = FilenameRepair(settings, Database(settings.state / 'library.sqlite3'))
     repair.library.probe = lambda _: {'streams': [{'codec_type': 'audio', 'index': 1}]}
@@ -74,6 +74,8 @@ def test_preview_apply_references_overrides_measurements_and_idempotence(repair)
         assert db.execute('SELECT video_id FROM playlist_items ORDER BY position').fetchone()[0] == new_id
         assert db.execute('SELECT id FROM overrides').fetchone()[0] == new_id
         assert db.execute('SELECT integrated_lufs FROM audio_loudness WHERE video_id=?', (new_id,)).fetchone()[0] == -20
+        assert tuple(db.execute('SELECT size,mtime FROM loudness_jobs WHERE video_id=?', (new_id,)).fetchone()) == (row['size'], row['mtime'])
+        assert db.execute('SELECT 1 FROM loudness_jobs WHERE video_id=?', (old_id,)).fetchone() is None
         assert db.execute('SELECT id FROM search WHERE search MATCH ?', ('"User artist"',)).fetchone()[0] == new_id
         assert db.execute('SELECT state FROM filename_renames').fetchone()[0] == 'complete'
     assert LoudnessScanner(repair.settings, repair.database).status()['measured'] == 1

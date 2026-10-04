@@ -10,7 +10,7 @@ from mvideo.library import Library
 
 def test_existing_catalog_migrates_to_indexed_home_status_and_queue(tmp_path, monkeypatch):
     root = tmp_path/'media'; root.mkdir()
-    settings = Settings(root, tmp_path/'state'); settings.prepare()
+    settings = Settings(root, tmp_path/'state', watch_mode='off', file_stability_seconds=0); settings.prepare()
     database = Database(settings.state/'library.sqlite3')
     library = Library(settings, database)
     library.probe = lambda path: {'format': {'duration': '10'}, 'streams': []}
@@ -24,7 +24,7 @@ def test_existing_catalog_migrates_to_indexed_home_status_and_queue(tmp_path, mo
     expected = library.videos(limit=100)
     expected_ids = [item['id'] for item in expected['items']]
 
-    app = create_app(settings)
+    app = create_app(settings, scan_interval=0)
     queries = []
     connect = app.state.database.connect
 

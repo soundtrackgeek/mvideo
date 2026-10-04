@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import stat as stat_module
 import subprocess
 import threading
 from pathlib import Path
@@ -17,7 +18,7 @@ class Library:
     def __init__(self, settings, database):
         self.settings, self.database = settings, database
         self.scan_lock = threading.Lock()
-        self.scan_status = {"state": "idle", "scanned": 0, "changed": 0}
+        self.scan_status = {"state": "idle", "scanned": 0, "changed": 0, "deferred": 0}
 
     def probe(self, path):
         p = subprocess.run([self.settings.ffprobe, "-v", "error", "-show_format", "-show_streams", "-of", "json", str(path)],
@@ -29,9 +30,9 @@ class Library:
         return {"format": {k: result.get("format", {}).get(k) for k in ("format_name", "duration", "bit_rate")},
                 "streams": [{k: s.get(k) for k in ("index", "codec_type", "codec_name", "profile", "level", "pix_fmt", "width", "height", "r_frame_rate", "field_order", "sample_aspect_ratio", "color_transfer", "channels", "sample_rate")} for s in result.get("streams", [])]}
 
-    def scan(self):
+    def scan(self, *, stop_event=None):
         if not self.scan_lock.acquire(blocking=False):
-            return self.scan_status
+            return {'state': 'busy', 'error': 'Another scan is already running'}
         lock_file = None
         try:
             lock_file = (self.settings.state/'scan.lock').open('a+b')
@@ -48,23 +49,34 @@ class Library:
             if lock_file: lock_file.close()
             self.scan_lock.release()
             return {'state':'busy', 'error':'Another scan is already running or its lock is unavailable'}
-        self.scan_status = {"state": "scanning", "scanned": 0, "changed": 0}
+        self.scan_status = {"state": "scanning", "scanned": 0, "changed": 0, "deferred": 0,
+                            "missing": 0, "pending": 0}
+        stop = stop_event if stop_event is not None else threading.Event()
         try:
             root = self.settings.library.resolve(strict=True)
             if not root.is_dir():
                 raise OSError("Library root unavailable")
+            with self.database.connect() as db:
+                existing = {row["id"]: (row["size"], row["mtime"], row["available"], row["probe_error"])
+                            for row in db.execute("SELECT id,size,mtime,available,probe_error FROM videos")}
             seen = set()
             walk_errors = []
             def fail(error):
                 walk_errors.append(type(error).__name__)
             # Collect stat data before changing availability. Partial/inaccessible walks never purge records.
-            files = []
+            candidates = []
             directories = [root]
             while directories:
+                if stop.is_set():
+                    self.scan_status.update(state="stopped", deferred=len(candidates))
+                    return self.scan_status
                 directory = directories.pop()
                 try:
                     with os.scandir(directory) as entries:
                         for entry in entries:
+                            if stop.is_set():
+                                self.scan_status.update(state="stopped", deferred=len(candidates))
+                                return self.scan_status
                             if entry.is_symlink():
                                 continue
                             path = Path(entry.path)
@@ -82,48 +94,89 @@ class Library:
                             relative = path.relative_to(root).as_posix()
                             identity = hashlib.sha256(relative.encode()).hexdigest()[:32]
                             seen.add(identity)
-                            files.append((identity, relative, stat.st_size, stat.st_mtime_ns, path))
+                            self.scan_status["scanned"] += 1
+                            if existing.get(identity) != (stat.st_size, stat.st_mtime_ns, 1, None):
+                                candidates.append((identity, relative, stat.st_size, stat.st_mtime_ns, path))
                 except OSError as error:
                     fail(error)
-            pending = []
-            for identity, relative, size, mtime, path in files:
-                self.scan_status["scanned"] += 1
-                with self.database.connect() as db:
-                    existing = db.execute("SELECT size,mtime,available,probe_error FROM videos WHERE id=?", (identity,)).fetchone()
-                    override = db.execute("SELECT artist,title,year FROM overrides WHERE id=?", (identity,)).fetchone()
-                if existing and tuple(existing) == (size, mtime, 1, None):
+
+            def unchanged(candidate):
+                _, _, size, mtime, path = candidate
+                try:
+                    current = path.stat(follow_symlinks=False)
+                    return stat_module.S_ISREG(current.st_mode) and (current.st_size, current.st_mtime_ns) == (size, mtime)
+                except OSError:
+                    return False
+
+            # All candidates share one settling interval, including on large initial imports.
+            self.scan_status.update(state="settling", pending=len(candidates))
+            if candidates and stop.wait(self.settings.file_stability_seconds):
+                self.scan_status.update(state="stopped", deferred=len(candidates), pending=0)
+                return self.scan_status
+            stable = []
+            for candidate in candidates:
+                if stop.is_set():
+                    self.scan_status["deferred"] += self.scan_status["pending"]
+                    self.scan_status.update(state="stopped", pending=0)
+                    return self.scan_status
+                if unchanged(candidate):
+                    stable.append(candidate)
+                else:
+                    self.scan_status["deferred"] += 1
+                    self.scan_status["pending"] -= 1
+            self.scan_status["state"] = "probing"
+            for candidate in stable:
+                if stop.is_set():
+                    self.scan_status["deferred"] += self.scan_status["pending"]
+                    self.scan_status.update(state="stopped", pending=0)
+                    return self.scan_status
+                identity, relative, size, mtime, path = candidate
+                if not unchanged(candidate):
+                    self.scan_status["deferred"] += 1
+                    self.scan_status["pending"] -= 1
+                    continue
+                probe, error = None, None
+                try:
+                    probe = json.dumps(self.probe(path))
+                except (OSError, ValueError, subprocess.TimeoutExpired):
+                    error = "Unable to inspect media; retry scan after checking FFprobe and file access"
+                if stop.is_set() or not unchanged(candidate):
+                    self.scan_status["deferred"] += 1
+                    self.scan_status["pending"] -= 1
                     continue
                 parsed = parse_filename(path.name)
-                if override:
-                    parsed.update(dict(override)); parsed["warnings"] = []
-                probe, error = None, "Inspection pending"
-                pending.append((identity, path))
                 with self.database.connect() as db:
+                    db.execute("BEGIN IMMEDIATE")
+                    if stop.is_set() or not unchanged(candidate):
+                        self.scan_status["deferred"] += 1
+                        self.scan_status["pending"] -= 1
+                        continue
+                    override = db.execute("SELECT artist,title,year FROM overrides WHERE id=?", (identity,)).fetchone()
+                    if override:
+                        parsed.update(dict(override)); parsed["warnings"] = []
                     db.execute("""INSERT INTO videos VALUES(?,?,?,?,?,?,?,?,?,?,?,1)
                         ON CONFLICT(id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime,artist=excluded.artist,
                         title=excluded.title,year=excluded.year,raw_name=excluded.raw_name,warnings=excluded.warnings,
                         probe=excluded.probe,probe_error=excluded.probe_error,available=1""",
                         (identity, relative, size, mtime, parsed["artist"], parsed["title"], parsed["year"], parsed["raw_name"], json.dumps(parsed["warnings"]), probe, error))
                     self._index(db, identity, parsed)
+                    db.execute("""INSERT INTO loudness_jobs(video_id,size,mtime) VALUES(?,?,?)
+                        ON CONFLICT(video_id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime""",
+                        (identity, size, mtime))
                     db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
                 self.scan_status["changed"] += 1
-            with self.database.connect() as db:
-                missing = [] if walk_errors else [r[0] for r in db.execute("SELECT id FROM videos WHERE available=1") if r[0] not in seen]
-                for identity in missing:
-                    db.execute("UPDATE videos SET available=0 WHERE id=?", (identity,))
-                    db.execute("DELETE FROM search WHERE id=?", (identity,))
-                if missing:
-                    db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
-            self.scan_status.update(state="probing", missing=len(missing), pending=len(pending))
-            for identity, path in pending:
-                probe, error = None, None
-                try:
-                    probe = json.dumps(self.probe(path))
-                except (OSError, ValueError, subprocess.TimeoutExpired):
-                    error = "Unable to inspect media; retry scan after checking FFprobe and file access"
-                with self.database.connect() as db:
-                    db.execute("UPDATE videos SET probe=?,probe_error=? WHERE id=?", (probe,error,identity))
                 self.scan_status["pending"] -= 1
+            if stop.is_set():
+                self.scan_status["state"] = "stopped"
+                return self.scan_status
+            missing = [] if walk_errors else [identity for identity, row in existing.items() if row[2] and identity not in seen]
+            if missing:
+                with self.database.connect() as db:
+                    for identity in missing:
+                        db.execute("UPDATE videos SET available=0 WHERE id=?", (identity,))
+                        db.execute("DELETE FROM search WHERE id=?", (identity,))
+                    db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
+            self.scan_status["missing"] = len(missing)
             self.scan_status.update(state="warning" if walk_errors else "idle", inaccessible=len(walk_errors))
             if walk_errors:
                 self.scan_status["error"] = "Some files could not be read; no missing records were removed"

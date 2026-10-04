@@ -1,6 +1,6 @@
 # mvideo: improvement and feature ideas
 
-Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. This is a planning document; none of it is implemented. Library figures come from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses.
+Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is now implemented in **server 0.12.0 source**; the remaining entries are proposals. Windows deployment is separate from this source update. Library figures come from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses.
 
 **Effort:** **S** ≈ a day · **M** ≈ several days · **L** ≈ a week or more. **Impact** is a judgement of how much the change affects day-to-day use of the library.
 
@@ -8,7 +8,7 @@ Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** a
 
 If only a handful of these get done, these give the most for the effort:
 
-1. **Automate the "add videos" pipeline and refresh Apple TV live** (improvements 1–2). This removes the four-step admin PowerShell routine and the need to close and reopen the app.
+1. **Automate the "add videos" pipeline and refresh Apple TV live** (improvements 1–2). Automatic indexing and measurement are implemented in server 0.12.0. Live Apple TV refresh remains deferred to improvement 2, so the app still needs a manual library reload.
 2. **Pre-convert the ~554 non-direct videos and keep their frame rate** (improvements 4–5). This removes the "Preparing…" wait and the 30 fps judder.
 3. **Home shelves, play history and favourites** (improvement 10, features 1–2). Home currently shows the same alphabetical grid on every launch.
 4. **"Music television" channels with on-screen credits** (feature 4). This fits the app's tagline better than anything else on the list.
@@ -20,15 +20,17 @@ If only a handful of these get done, these give the most for the effort:
 
 ### 1. Adding new videos (index → measure → reload)
 
-**Today:** Adding files takes four manual steps in admin PowerShell: scan, run the loudness launcher, check its status, then fully close and reopen the Apple TV app. The service scans every 30 minutes but never measures loudness, so new videos play un-normalized until someone remembers the command. Each scan also opens a new SQLite connection and runs two queries for every one of the ~15.5k files, even unchanged ones ([library.py:92](../server/mvideo/library.py#L92)).
+**Implemented in server 0.12.0 source:** Routine additions are now copy completed files, wait for indexing and audio analysis, then reload Apple TV. See the [updated operating procedure](../README.md#adding-replacing-or-renaming-music-videos).
 
-**Improve by:**
-- After a scan with `changed > 0`, queue loudness measurement for exactly those IDs in a low-priority background worker inside the service. It can reuse `LoudnessScanner`, measure one video at a time at below-normal priority, and respect the existing scan lock. Keep the CLI for bulk and `--force` runs.
-- Add a file-system watcher (`watchdog`) so a file dropped into `L:\MusicVideos` is indexed within about a minute instead of up to 30. If `L:` is an SMB mount, use its `PollingObserver` or keep the periodic scan as the fallback.
-- Before probing, wait until a file's size and mtime are unchanged across two checks, so a half-copied file is never probed.
-- Load `id, size, mtime, available, probe_error` for the whole catalog into memory once per scan, and open write transactions only for files that changed.
+- A `watchdog` polling observer checks every 15 seconds by default, including on SMB mounts. Notifications are coalesced for 5 seconds before scanning. Native filesystem events and an off mode are configurable, and startup/30-minute scans remain a fallback.
+- Every catalog scan records exactly the new or changed IDs in a durable `loudness_jobs` queue, including scans run from the CLI. A service worker reuses `LoudnessScanner` to measure one video at a time at low priority with the shared `loudness.lock`. Pending jobs survive restart; failed results are saved without an endless automatic retry loop. The CLI remains available for bulk analysis, retries and `--force` runs.
+- Before probing, scans compare size and mtime across two observations separated by 5 seconds by default, and check them again around the probe. Files still changing are deferred. A paused copy can pass this heuristic; complete copies outside the library and prefer an atomic move into it.
+- Scans load existing catalog metadata in one batch, avoiding per-file database reads for unchanged files, and write only entries needing updates.
+- Authenticated `/api/status` includes ingestion watcher/worker state, pending job count and loudness coverage. Watch mode, polling interval and stability interval are configurable; `--scan-interval 0` disables startup/periodic scans independently of the watcher.
 
-**Effort:** M · **Impact:** High
+**Remaining:** Apple TV library refresh is still manual. Live refresh belongs to improvement 2 and is deferred. This source update does not establish Windows deployment or device verification.
+
+**Impact:** High
 
 ### 2. Keeping Apple TV in sync with the library
 
@@ -218,7 +220,7 @@ If only a handful of these get done, these give the most for the effort:
 
 ### 17. Volume normalization
 
-**Today:** The foundation is solid. The target is a fixed −18 LUFS, with a −2 dBTP source-peak ceiling and a +12 dB maximum boost. The only peak protection is a simple sample clamp, not a true-peak limiter. The only control is on or off. 17 videos failed analysis and play at their original volume, and new videos wait for a manual measurement run (see improvement 1).
+**Today:** The foundation is solid. The target is a fixed −18 LUFS, with a −2 dBTP source-peak ceiling and a +12 dB maximum boost. The only peak protection is a simple sample clamp, not a true-peak limiter. The only control is on or off. 17 videos failed analysis and play at their original volume. Server 0.12.0 automatically measures new or changed videos (see improvement 1); retrying existing failures remains a CLI maintenance action.
 
 **Improve by:**
 - Add a setting for the target loudness (−14, −16, −18 or −20 LUFS). The gain calculation already takes these values as parameters.
@@ -594,7 +596,7 @@ If only a handful of these get done, these give the most for the effort:
    - Batch Up Next endpoint
    - Automatic loading on scroll
 2. **Foundations (M):**
-   - Automatic loudness measurement and file watching
+   - Automatic loudness measurement and file watching: implemented in server 0.12.0 source
    - Live Apple TV refresh over Server-Sent Events
    - Pre-converting non-direct videos
    - Nuke image loading

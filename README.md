@@ -4,7 +4,9 @@ A native Apple TV music video app backed by an independent Windows library and s
 
 The Windows service and native tvOS app are implemented. The app supports shared playlists with a browser editor, artist/title/year search, artist biographies and fanart.tv photography, year/decade browsing, full-selection shuffle, continuous playback, picture-in-picture, artist navigation during playback, queue controls and return to the previous focused video and scroll position. Home chooses a random fanart.tv background from verified artists in the library at launch, keeps it stable while browsing, and falls back to a video thumbnail.
 
-Server **0.11.2** uses compact catalog indexes for library counts, browsing order and queues, avoiding full scans of stored media-probe data. It also keeps thumbnail extraction and artist-image downloads in separate worker pools so slow images cannot occupy the workers needed for library loading, Shuffle or playback preparation. Apple TV **0.11.1** reconnects and retries a timed-out or interrupted library/queue/preparation request once; returning to the app retries a failed library page. Persistent failures still offer retry controls. Install the server fix with the [Windows updater](#normalize-volume-on-apple-tv); the app update arrives separately through TestFlight.
+Server **0.12.0** automatically detects library changes, indexes stable files and measures new or replaced videos in the background. Pending measurements survive service restarts. Routine additions now need only a completed file copy, time for analysis, and an Apple TV library reload; live Apple TV refresh is a separate, deferred improvement. Install the source release with the [Windows updater](#normalize-volume-on-apple-tv). These release notes do not imply deployment to the Windows PC.
+
+The server retains compact catalog indexes and separate image worker pools for responsive library loading, Shuffle and playback preparation. The compatible Apple TV app remains **0.11.1**: it reconnects and retries a timed-out or interrupted library/queue/preparation request once; returning to the app retries a failed library page. Persistent failures still offer retry controls. App updates arrive separately through TestFlight.
 
 Artist tiles and pages automatically look up fanart.tv photography as you browse. The server matches artists against MusicBrainz recording credits using songs in your library, then caches their photos. Tiles replace temporary video stills when photos arrive; unmatched artists or missing provider photos keep the fallback. Year and decade tiles use a still from a video dated within that period. Dark gradients keep names and counts readable. On artist pages, move down past the videos to focus **Artist photos**, then select a photo to view it full-screen; use Previous/Next or Menu to return. Player controls display **Artist - Track (Year)**, omitting missing metadata.
 
@@ -45,7 +47,7 @@ Authenticated API: `GET/POST /api/playlists`, `GET/PUT/DELETE /api/playlists/{id
 
 ## Library service
 
-Python 3.12+, FFmpeg/FFprobe on PATH. SQLite FTS5 indexes artist, song and year with paginated results. Scans compare size/mtime, retain ambiguous filenames for review and never write into the media root. Offline or incomplete directory walks retain the catalog. Metadata, thumbnails and converted playback copies live in a separate state directory.
+Python 3.12+, FFmpeg/FFprobe on PATH. SQLite FTS5 indexes artist, song and year with paginated results. Scans compare size/mtime across two observations and again around probing, retain ambiguous filenames for review and never write into the media root. A batch read of catalog scan metadata avoids per-file database reads for unchanged files. Offline or incomplete directory walks retain the catalog. Metadata, thumbnails and converted playback copies live in a separate state directory.
 
 The explicit `fix-filenames --apply` maintenance command is an exception: it renames the files listed in a reviewed plan and can move listed unknown-year videos to a sibling review folder. Ordinary scanning, playback and loudness analysis remain read-only with respect to source media.
 
@@ -79,7 +81,7 @@ Installed source: `L:\mvideo-service`. Read-only media: `L:\MusicVideos`. Python
 .\scripts\windows-start.ps1 -Pair
 ```
 
-The installed **mvideo Library** Task Scheduler task starts 30 seconds after Windows boots, runs as **Local Service**, requires no interactive login, and restarts after failures. It scans at startup and every 30 minutes. Tailscale's own Windows service is set to Automatic. No terminal must remain open. The PC must remain powered on and awake for streaming; reboot startup configuration and a fresh task launch have been verified, but an actual PC reboot has not been performed.
+The installed **mvideo Library** Task Scheduler task starts 30 seconds after Windows boots, runs as **Local Service**, requires no interactive login, and restarts after failures. With server 0.12.0, the service also watches for file changes using an SMB-compatible polling observer by default, while retaining its startup and 30-minute fallback scans. Tailscale's own Windows service is set to Automatic. No terminal must remain open. The PC must remain powered on and awake for streaming; reboot startup configuration and a fresh task launch have been verified, but an actual PC reboot has not been performed.
 
 Runtime state is **`C:\ProgramData\mvideo`**: catalog, metadata, thumbnails, conversions and `service.log`. The installer migrates the earlier per-user database, protects service code against changes by the service account, and restricts state access to Local Service, the installer account, Administrators and SYSTEM. Provider keys are encrypted with machine DPAPI inside that restricted directory. Library files and their permissions remain unchanged. The initial interactive setup stores keys in current-user DPAPI; rerun the boot installer after changing those keys to update the background copy. `LAST_FM_SECRET` is unnecessary for the public biography API.
 
@@ -93,43 +95,48 @@ For maintenance, use Task Scheduler's **mvideo Library** task, or run `Stop-Sche
 
 ### Adding, replacing, or renaming music videos
 
-Use this procedure on the **Windows PC** whenever you change the library. The media folder is **`L:\MusicVideos`**, the database is **`C:\ProgramData\mvideo\library.sqlite3`**, and the maintenance checkout is **`C:\_code\mvideo`**. Run the commands below in the same **administrator PowerShell** window. The installed background service can keep running.
+Use this procedure on the **Windows PC** after installing server 0.12.0. The media folder is **`L:\MusicVideos`**, the database is **`C:\ProgramData\mvideo\library.sqlite3`**, and the maintenance checkout is **`C:\_code\mvideo`**. The installed background service can keep running. The optional maintenance commands below run in the same **administrator PowerShell** window.
 
-**What happens automatically:** the service indexes files at startup and every 30 minutes, but **does not automatically measure loudness**. Each time a video starts, Apple TV requests playback information from the server. The server reads and validates that video's saved loudness measurement, calculates its gain, and sends it to the app. With **Normalize volume** enabled (the default), Apple TV applies the gain during playback. There is no per-video setting, media rewrite, service restart, or new app build needed after measuring new videos. An already playing video picks up a newly saved measurement when you start it again.
+**What happens automatically:** the service polls for filesystem changes every 15 seconds by default, coalesces notifications for 5 seconds, and requests a catalog scan. It also scans at startup and every 30 minutes as a fallback. A scan records exactly the new or changed video IDs in a durable `loudness_jobs` queue, including changes indexed by a separate CLI scan. The service measures one queued video at a time at low priority, sharing `loudness.lock` with the CLI. Pending jobs survive restarts; completed failures are saved rather than retried indefinitely. The CLI remains available for bulk analysis, explicit retries and forced remeasurement.
+
+Each time a video starts, Apple TV requests playback information from the server. With **Normalize volume** enabled (the default), the app applies the gain from that video's valid saved measurement. There is no per-video setting, media rewrite or new app build needed. An already playing video picks up a newly saved measurement when you start it again.
 
 #### Add new videos or replace existing files
 
-1. **Prepare the files.** Use `Artist - Title (Year).ext`, for example `a-ha - Take On Me (1985).mp4`. Keep the real file extension and use a space on each side of the artist/title dash. Choose missing or uncertain years manually; keep undecided files in `L:\MusicVideos - Needs Review` outside the active library. Finish downloading/copying and naming files outside `L:\MusicVideos`, then move the completed files into that folder or its subfolders. Stop playback of a file before replacing it.
+1. **Copy completed files into the library.** Use `Artist - Title (Year).ext`, for example `a-ha - Take On Me (1985).mp4`. Keep the real file extension and use a space on each side of the artist/title dash. Choose missing or uncertain years manually; keep undecided files in `L:\MusicVideos - Needs Review` outside the active library. Finish downloading/copying and naming files outside `L:\MusicVideos`, then move the completed files into that folder or its subfolders. Prefer an atomic move from a staging folder on the same filesystem. Stop playback of a file before replacing it.
 
-2. **Index the files now.** This avoids waiting for the next automatic scan and makes the new files available to the loudness command. The helper below selects the existing Python environment and loads the installed library/FFmpeg configuration without starting another server:
+2. **Wait for indexing and audio analysis.** The watcher detects changes on its next poll, and the scanner checks that size and mtime remain unchanged for at least 5 seconds before probing. It checks them again after probing and defers files still changing. This is a stability heuristic: a paused copy can look complete, so staging outside the library is still recommended. Detection, scanning and full-track loudness analysis take time, especially for a large batch. The authenticated `/api/status` response reports watcher state, pending ingestion jobs, worker state and loudness coverage. The optional status command below shows saved coverage without decoding audio. Videos can appear before measurement finishes and play at their original volume until a valid measurement is available.
 
-   ```powershell
-   Set-Location 'C:\_code\mvideo'
-   git pull --ff-only
-   $mvideoPython = & .\scripts\windows-python.ps1 -State 'C:\ProgramData\mvideo'
-   & $mvideoPython -m mvideo.cli scan
-   ```
+3. **Reload the Apple TV library.** Exit the current playback queue, fully close mvideo, and reopen it to reload cached browsing lists. Automatic Apple TV refresh is deferred to improvement 2. For an edited playlist, **Refresh playlists / Refresh playlist** also reloads it. Start a new selection; an existing queue does not acquire newly added videos. Keep **Normalize volume** enabled in the player controls. **Up Next** shows normalization status for the current video. Add new videos to any handpicked playlists yourself in Playlist studio; indexing does not add them to existing playlists.
 
-   Wait for the final JSON to report **`"state": "idle"`, `"pending": 0`, and `"inaccessible": 0`**. `changed` counts new or changed catalog entries; `scanned` includes unchanged files too. If it says `busy`, wait for the other catalog scan to finish and rerun the last command. Resolve `warning`/`error` results before continuing. An idle scan does not guarantee every file decoded successfully; the measurement step reports audio failures separately.
+#### Manual indexing, measurement and coverage checks
 
-3. **Measure audio and check coverage.** After the catalog scan has finished, run:
+Use these commands to request immediate indexing, fill gaps in an older catalog, or retry failed analyses. The helper selects the existing Python environment and loads the installed library/FFmpeg configuration without starting another server:
 
-   ```powershell
-   .\scripts\windows-measure-loudness.ps1 -State 'C:\ProgramData\mvideo'
-   .\scripts\windows-measure-loudness.ps1 -State 'C:\ProgramData\mvideo' -Status
-   ```
+```powershell
+Set-Location 'C:\_code\mvideo'
+git pull --ff-only
+$mvideoPython = & .\scripts\windows-python.ps1 -State 'C:\ProgramData\mvideo'
+& $mvideoPython -m mvideo.cli scan
+```
 
-   The command checks the indexed library but **skips unchanged completed measurements**. It measures new files, remeasures files whose size/modification time or analysis profile changed, and retries earlier failures. **Do not use `-Force` for routine additions or replacements**: it would remeasure all completed videos. Results are saved per video; if interrupted with Ctrl+C, rerun the same command to resume.
+Wait for the final JSON to report **`"state": "idle"`, `"pending": 0`, `"deferred": 0`, and `"inaccessible": 0`**. Scan `pending` counts candidates still awaiting a probe; `deferred` counts files postponed because they changed during the scan. Both are separate from pending loudness jobs. `changed` counts new or changed catalog entries; `scanned` includes unchanged files too. If it says `busy`, wait for the other catalog scan to finish and rerun the last command. If `deferred` is nonzero, let copying finish and scan again. Resolve `warning`/`error` results before continuing. An idle scan does not guarantee every file decoded successfully; loudness coverage reports audio failures separately. The running service consumes jobs queued by this CLI scan automatically.
 
-   In the final catalog/status summary, aim for `pending: 0` and `stale: 0`. `measured` counts videos with usable saved volumes. `error` lists the count that failed; each failure is printed with its video ID and error during the run. The existing 17 errors may remain if those files still cannot be analyzed. An error exit code does not discard successful measurements. `below_gate` and `no_audio` are separate outcomes without a usable gain. Videos with unusable measurements play at original volume, and **Normalize volume** cannot fix that until a valid measurement exists.
+```powershell
+.\scripts\windows-measure-loudness.ps1 -State 'C:\ProgramData\mvideo' -Status
+# Optional bulk measurement or retry of earlier failures:
+.\scripts\windows-measure-loudness.ps1 -State 'C:\ProgramData\mvideo'
+```
 
-4. **Reload the Apple TV library.** Exit the current playback queue, fully close mvideo, and reopen it to reload cached browsing lists. For an edited playlist, **Refresh playlists / Refresh playlist** also reloads it. Start a new selection; an existing queue does not acquire newly added videos. Keep **Normalize volume** enabled in the player controls. **Up Next** shows normalization status for the current video. Add new videos to any handpicked playlists yourself in Playlist studio; indexing does not add them to existing playlists.
+The bulk command checks the indexed library but **skips unchanged completed measurements**. It measures videos without saved results, remeasures files whose size/modification time or analysis profile changed, and retries earlier failures. The background worker and CLI share the loudness lock; if it is busy, wait for the current measurement and retry. **Do not use `-Force` for routine additions or replacements**: it would remeasure all completed videos. Results are saved per video; if interrupted with Ctrl+C, rerun the same command to resume.
+
+In loudness coverage, aim for `pending: 0` and `stale: 0`. `measured` counts videos with usable saved volumes. `error` counts failed analyses; each CLI failure is printed with its video ID and error during the run. The existing 17 errors may remain if those files still cannot be analyzed. An error exit code does not discard successful measurements. `below_gate` and `no_audio` are separate outcomes without a usable gain. Videos with unusable measurements play at original volume, and **Normalize volume** cannot fix that until a valid measurement exists.
 
 #### Rename an already indexed video while keeping its measurements and playlists
 
 Use the filename repair command **before renaming the file in Explorer or Total Commander**. Video IDs depend on the relative path. This command migrates the saved volume, playlist entries/order and metadata overrides to the new ID while renaming the file.
 
-1. Close active mvideo playback and playlist editing, and stop any loudness scan with Ctrl+C. Run the setup/catalog commands in step 2 above so the old filename is indexed. The service can remain running; the repair command locks out conflicting catalog/loudness scans. If a scan holds the lock, wait and retry.
+1. Close active mvideo playback and playlist editing, and stop any CLI loudness scan with Ctrl+C. Run the catalog commands under [Manual indexing, measurement and coverage checks](#manual-indexing-measurement-and-coverage-checks) so the old filename is indexed. The service can remain running; the repair command locks out conflicting catalog/loudness scans. If a scan or background measurement holds the lock, wait and retry.
 2. Create a UTF-8 JSON plan outside the media folder. From `C:\_code\mvideo`:
 
    ```powershell
@@ -165,11 +172,11 @@ Use the filename repair command **before renaming the file in Explorer or Total 
 
    Applying creates a database backup and updates the catalog immediately. Keep its reported backup/journal for recovery. If interrupted, rerun the same `-Apply` command. An unchanged file's valid loudness measurement is retained, so renaming through this command does not require decoding its audio again.
 
-4. Run the measurement/status commands in step 3 of the addition procedure, then reload Apple TV as in step 4. Existing valid measurements are skipped; any previously unmeasured or failed videos are handled normally. Retained metadata overrides take priority over the filename if one was previously set.
+4. Check loudness coverage using the status command under [Manual indexing, measurement and coverage checks](#manual-indexing-measurement-and-coverage-checks); run the optional bulk command for missing or failed measurements. Reload Apple TV as in step 3 of the addition procedure. Existing valid measurements are skipped. Retained metadata overrides take priority over the filename if one was previously set.
 
 #### If you already renamed or moved files manually
 
-Run the **index → measure → status → reload Apple TV** procedure above. The scanner treats the new relative path as a new video and marks the old path unavailable; it does **not** infer that they are the same file. The new entry therefore needs a new loudness measurement. In Playlist studio, replace unavailable old entries with the newly indexed videos and restore any manual metadata overrides as needed. Do not apply an old-name rename plan after moving the file yourself. For future filename changes, use the repair procedure to retain those links and measurements.
+Wait for automatic indexing and measurement, check coverage if needed, then reload Apple TV as above. The scanner treats the new relative path as a new video and marks the old path unavailable; it does **not** infer that they are the same file. The new entry therefore needs a new loudness measurement. In Playlist studio, replace unavailable old entries with the newly indexed videos and restore any manual metadata overrides as needed. Do not apply an old-name rename plan after moving the file yourself. For future filename changes, use the repair procedure to retain those links and measurements.
 
 ### Configuration
 
@@ -179,8 +186,13 @@ Run the **index → measure → status → reload Apple TV** procedure above. Th
 | `MVIDEO_STATE` | `.state` (installed Windows task uses ProgramData) | Database and derived caches; must be outside source root |
 | `MVIDEO_FFMPEG`, `MVIDEO_FFPROBE` | executable names on PATH | Installed tools |
 | `MVIDEO_CACHE_GB` | `20` | Playback conversion cache budget |
+| `MVIDEO_WATCH_MODE` | `polling` | Library watcher: `polling` for SMB-compatible polling, `native` for OS filesystem events, or `off` |
+| `MVIDEO_WATCH_INTERVAL` | `15` | Positive polling interval in seconds |
+| `MVIDEO_FILE_STABILITY_SECONDS` | `5` | Nonnegative interval between size/mtime observations before probing; `0` performs both checks without the delay |
 | `LAST_FM` | unset | Server-only Last.fm API key |
 | `FANART_TV` | unset | Server-only fanart.tv project API key |
+
+`mvideo serve --watch-mode polling|native|off` overrides `MVIDEO_WATCH_MODE`. Change notifications are coalesced for 5 seconds before scanning. `serve --scan-interval SECONDS` defaults to `1800` and accepts at least `60` seconds; `0` disables scheduled startup and periodic scans, but leaves the watcher independent. The watcher also requests a reconciliation scan when it attaches or reconnects. To disable automatic indexing entirely, use `mvideo serve --watch-mode off --scan-interval 0`. Loudness jobs already queued are still processed by the service. The authenticated `/api/status` endpoint includes `ingestion.watcher`, `ingestion.loudness`, `ingestion.pending_loudness` and top-level `loudness` coverage alongside catalog scan status.
 
 Pairing codes last five minutes and lock after five unsuccessful attempts. Successful pairing consumes the code and issues a 90-day session. Server stores only session hashes; clients save tokens in their own Keychain namespace. `mvideo revoke-all` revokes every mvideo session, including its media tickets. Access logs are disabled because media paths contain scoped expiring tickets. Configure any reverse proxy to avoid logging these paths or Authorization headers too.
 
@@ -202,7 +214,7 @@ Only set a manual MusicBrainz UUID after checking the artist's identity. Name-on
 
 The **0.8.0 source** includes the [complete 15,559-file audit and reviewed repair list](docs/filename-repairs.md): **183 renames**, using the six years supplied by the owner, and **one move aside** for Matt Cox — Washed It All Away, whose year is unknown. The target format is `Artist - Title (Year).ext`. Existing clear years are retained; future unknown/ambiguous years are reported for manual decisions.
 
-Stop the loudness scan with Ctrl+C and close active playback/playlist editing before applying. Run from the updated checkout on the Windows PC:
+Stop any CLI loudness scan with Ctrl+C and close active playback/playlist editing before applying. If a background measurement holds the lock, wait and retry. Run from the updated checkout on the Windows PC:
 
 ```powershell
 git pull --ff-only
@@ -229,13 +241,13 @@ git pull --ff-only
 .\scripts\windows-update-service.ps1
 ```
 
-The updater builds the current server package, installs it in the configured service Python, and restarts the task if it was running. It retains the existing ProgramData database, measurements, pairing sessions, provider settings and media. It checks `/health` for the new version. Use `-State` for a nonstandard installed state directory. Server **0.9.1** isolates installation from Python settings left by maintenance scripts and works with Apple TV **0.9.0 (6)**. Install that Apple TV build through TestFlight. No rescan or repeat of successful audio analysis is needed.
+The updater builds the current server package and stages its wheel and dependency wheels before stopping the task. It then installs missing dependencies from those staged files without network access, force-reinstalls the server in the configured service Python, and restarts the task if it was running. This supplies the new `watchdog` dependency to existing installations. It retains the existing ProgramData database, measurements, pairing sessions, provider settings and media, and checks `/health` for the new version. Use `-State` for a nonstandard installed state directory. Installation is isolated from Python settings left by maintenance scripts. Server **0.12.0** works with the existing Apple TV **0.11.1** app; no app update or repeat of successful audio analysis is needed for automatic ingestion.
 
 The audio tap applies gain to decoded samples; it does not rewrite videos or require an additional normalized conversion cache. Multi-audio MP4s use a remuxed copy of their first audio track so playback matches the measurement. Existing format-compatibility conversions still apply. See [normalization behavior, limits and verification](docs/normalization.md).
 
 #### Measure audio loudness
 
-The server includes a resumable audio measurement command for volume normalization. It measures each available, indexed video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and saves integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. Apple TV 0.9.0 applies validated measurements during playback when connected to the updated service.
+The server automatically measures newly indexed or replaced videos and includes a resumable command for bulk analysis and retries. Both measure each selected video's entire first audio track using FFmpeg's [EBU R128 loudness analysis](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and save integrated loudness (LUFS), true peak (dBTP), loudness range (LU), and gating threshold. Apple TV 0.9.0 and later apply validated measurements during playback when connected to the updated service.
 
 On the Windows PC, run from an updated mvideo source directory. The launcher uses that checkout's Python environment when present, or reuses the installed service's Python environment:
 
@@ -245,7 +257,7 @@ On the Windows PC, run from an updated mvideo source directory. The launcher use
 .\scripts\windows-measure-loudness.ps1 -Limit 10   # small batch before running the whole library
 ```
 
-The launcher reads `background.json` in the installed ProgramData state directory to use the service's library, FFmpeg paths, and fallback Python executable. A separate checkout (for example `C:\_code\mvideo`) can therefore use the service environment at `L:\mvideo-service` while running the scanner source from the new checkout; there is no need to install another environment or rescan an already indexed library. It also supports an interactive installation, `MVIDEO_STATE`, explicit `-Library` / `-State` paths, and `-PythonPath` to select an existing Python 3.12+ executable with mvideo's dependencies. No provider credentials, service restart, or Apple TV update are required to measure audio. For new or changed files, follow [Adding, replacing, or renaming music videos](#adding-replacing-or-renaming-music-videos) to update the catalog before measuring audio.
+The launcher reads `background.json` in the installed ProgramData state directory to use the service's library, FFmpeg paths, and fallback Python executable. A separate checkout (for example `C:\_code\mvideo`) can therefore use the service environment at `L:\mvideo-service` while running the scanner source from the new checkout; there is no need to install another environment or rescan an already indexed library. It also supports an interactive installation, `MVIDEO_STATE`, explicit `-Library` / `-State` paths, and `-PythonPath` to select an existing Python 3.12+ executable with mvideo's dependencies. No provider credentials, service restart, or Apple TV update are required to measure audio. For new or changed files, the automatic flow is documented under [Adding, replacing, or renaming music videos](#adding-replacing-or-renaming-music-videos).
 
 The portable CLI uses the usual `MVIDEO_LIBRARY`, `MVIDEO_STATE`, `MVIDEO_FFMPEG`, and `MVIDEO_FFPROBE` settings:
 
@@ -257,8 +269,8 @@ The portable CLI uses the usual `MVIDEO_LIBRARY`, `MVIDEO_STATE`, `MVIDEO_FFMPEG
 
 - One video is processed at a time with one audio decoding/filter thread; Windows FFmpeg processes run below normal priority. Full-library analysis must read every audio track and may take hours. Progress is printed before and after each video.
 - Each result is committed immediately to `audio_loudness` in the existing `library.sqlite3` (normally `C:\ProgramData\mvideo\library.sqlite3`). **Ctrl+C** stops the scan; rerunning resumes by skipping unchanged completed measurements. The originals are never written, tagged, or replaced, and no converted media copies are generated.
-- Measurements record source size/mtime, analysis profile, FFmpeg version, audio stream index, and timestamp. A changed source or analysis profile is remeasured. Run the ordinary catalog scan after replacing files; an unindexed change produces an error instead of saving a measurement against an old file version. Coverage status reflects the indexed catalog, not a fresh filesystem scan.
-- Silent or below-gate tracks and videos without audio are recorded separately, with no invented loudness/gain. Decode failures and timeouts are recorded, later videos continue, and failed files retry on the next run. Two loudness scans cannot run against the same state directory simultaneously.
+- Measurements record source size/mtime, analysis profile, FFmpeg version, audio stream index, and timestamp. A changed source or analysis profile is remeasured by the bulk command. Wait for automatic indexing or run a catalog scan after replacing files; an unindexed change produces an error instead of saving a measurement against an old file version. Coverage status reflects the indexed catalog, not a fresh filesystem scan.
+- Silent or below-gate tracks and videos without audio are recorded separately, with no invented loudness/gain. Decode failures and timeouts are recorded and later videos continue. The background worker does not retry completed errors indefinitely; a later CLI run retries them. The worker and CLI share `loudness.lock`, so two analyses cannot run against the same state directory simultaneously.
 - Use `-Force` / `--force` to remeasure completed videos. `-Limit N` / `--limit N` counts attempted files, including failures, but excludes cached results. `-TimeoutSeconds N` / `--timeout N` changes the default 1,800-second analysis timeout per video. Exit codes: 0 for a successful batch, 1 for failures/deferred results, 130 for interruption.
 
 Analysis uses the first audio stream, converted to a defined stereo/48 kHz mix before measurement; the profile is `first-audio-stereo-48k-r128-v1`. Only the filter's **input** measurements are retained, so the playback target does not require another scan. The native player uses measured peak headroom and a final sample guard; see the normalization notes for the limits of source measurements after AAC conversion and device mixing.

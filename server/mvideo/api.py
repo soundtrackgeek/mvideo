@@ -7,7 +7,6 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 import asyncio
 import logging
-import threading
 import subprocess
 from time import perf_counter
 from .auth import Auth
@@ -18,6 +17,7 @@ from .metadata import Metadata
 from .playback import Playback, make_queue
 from .normalization import playback_normalization
 from .playlists import Playlists, PlaylistConflict
+from .ingestion import Ingestion
 
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class QueueRequest(Scope):
     start: str | None = None
 
 
-def create_app(settings=None):
+def create_app(settings=None, *, scan_interval=1800):
     settings=settings or Settings.from_env()
     settings.prepare()
     database=Database(settings.state/'library.sqlite3')
@@ -61,17 +61,23 @@ def create_app(settings=None):
     playback=Playback(settings,library)
     metadata=Metadata(database,settings)
     playlists=Playlists(database)
+    ingestion=Ingestion(settings,database,library,scan_interval=scan_interval)
     thumbnail_jobs=asyncio.Semaphore(8)
     artwork_jobs=asyncio.Semaphore(8)
     @asynccontextmanager
     async def lifespan(app):
-        yield
-        playback.close()
-        metadata.close()
-    app=FastAPI(title='mvideo',version='0.11.2',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+        ingestion.start()
+        try:
+            yield
+        finally:
+            await asyncio.to_thread(ingestion.close)
+            playback.close()
+            metadata.close()
+    app=FastAPI(title='mvideo',version='0.12.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
+    app.state.ingestion=ingestion
 
     @app.middleware('http')
     async def response_headers(request, call_next):
@@ -112,7 +118,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.11.2'}
+    def health(): return {'service':'mvideo','version':'0.12.0'}
 
     def playlist_result(value, sid):
         data = value.copy()
@@ -170,11 +176,12 @@ def create_app(settings=None):
         with database.connect() as db:
             total=db.execute('SELECT count(*) FROM videos WHERE available=1').fetchone()[0]
             unknown=db.execute('SELECT count(*) FROM videos WHERE available=1 AND year IS NULL').fetchone()[0]
-        return {'total':total,'unknown_years':unknown,'revision':database.revision(),'scan':library.scan_status}
+        return {'total':total,'unknown_years':unknown,'revision':database.revision(),'scan':library.scan_status,
+                'ingestion':ingestion.status(),'loudness':ingestion.scanner.status()}
 
     @app.post('/api/scan')
     def scan(sid=Depends(session)):
-        threading.Thread(target=library.scan,daemon=True).start()
+        ingestion.request_scan()
         return {'state':'requested'}
 
     @app.get('/api/videos')

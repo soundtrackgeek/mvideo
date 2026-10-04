@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -16,6 +17,10 @@ from .library import Library
 ANALYSIS_VERSION = 'first-audio-stereo-48k-r128-v1'
 COMPLETE = {'measured', 'below_gate', 'no_audio'}
 FIELDS = ('integrated_lufs', 'true_peak_dbtp', 'loudness_range_lu', 'threshold_lufs')
+
+
+class AnalysisCancelled(Exception):
+    """An interrupted measurement must remain pending rather than become an error."""
 
 
 def parse_measurement(log):
@@ -71,18 +76,25 @@ class LoudnessScanner:
         self.settings, self.database = settings, database
         self.library = Library(settings, database)
         self.ffmpeg_version = ''
+        self._preflight_complete = False
 
     def preflight(self):
         root = self.settings.library.resolve(strict=True)
         if not root.is_dir():
             raise ValueError('Library root is unavailable')
+        if self._preflight_complete:
+            return
         result = subprocess.run([self.settings.ffmpeg, '-hide_banner', '-filters'],
                                 capture_output=True, timeout=15, check=True)
         if not re.search(rb'\bloudnorm\s', result.stdout):
             raise ValueError('This FFmpeg build does not include the loudnorm filter')
         result = subprocess.run([self.settings.ffmpeg, '-version'],
                                 capture_output=True, timeout=15, check=True)
-        self.ffmpeg_version = result.stdout.decode('utf-8', errors='replace').splitlines()[0]
+        version = result.stdout.decode('utf-8', errors='replace').splitlines()
+        if not version:
+            raise ValueError('FFmpeg did not return its version')
+        self.ffmpeg_version = version[0]
+        self._preflight_complete = True
 
     @staticmethod
     def unchanged(path, row):
@@ -96,10 +108,14 @@ class LoudnessScanner:
                 and saved['analysis_version'] == ANALYSIS_VERSION
                 and (saved['source_size'], saved['source_mtime']) == (row['size'], row['mtime']))
 
-    def measure(self, path, row, timeout):
+    def measure(self, path, row, timeout, stop_event=None):
+        if stop_event is not None and stop_event.is_set():
+            raise AnalysisCancelled
         probe = json.loads(row['probe'] or '{}')
         if row['probe_error'] or 'streams' not in probe:
             probe = self.library.probe(path)
+        if stop_event is not None and stop_event.is_set():
+            raise AnalysisCancelled
         audio = next((stream for stream in probe['streams'] if stream.get('codec_type') == 'audio'), None)
         if audio is None:
             return {'status': 'no_audio'}
@@ -111,10 +127,36 @@ class LoudnessScanner:
         # Decode audio only, one file at a time. Discard the filter output: only
         # input_* statistics are saved, never normalized output or media files.
         priority = subprocess.BELOW_NORMAL_PRIORITY_CLASS if os.name == 'nt' else 0
+        if stop_event is not None and os.name != 'nt' and (nice := shutil.which('nice')):
+            args = [nice, '-n', '10', *args]
         with tempfile.TemporaryFile() as log:
             try:
-                result = subprocess.run(args, stdout=subprocess.DEVNULL, stderr=log,
-                                        timeout=timeout, creationflags=priority)
+                if stop_event is None:
+                    result = subprocess.run(args, stdout=subprocess.DEVNULL, stderr=log,
+                                            timeout=timeout, creationflags=priority)
+                else:
+                    if stop_event.is_set():
+                        raise AnalysisCancelled
+                    with subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=log,
+                                          creationflags=priority) as result:
+                        deadline = time.monotonic() + timeout
+                        try:
+                            while result.poll() is None:
+                                remaining = deadline - time.monotonic()
+                                if remaining <= 0:
+                                    raise subprocess.TimeoutExpired(args, timeout)
+                                if stop_event.wait(min(.1, remaining)):
+                                    raise AnalysisCancelled
+                        finally:
+                            if result.poll() is None:
+                                result.terminate()
+                                try:
+                                    result.wait(timeout=2)
+                                except subprocess.TimeoutExpired:
+                                    result.kill()
+                                    result.wait()
+                    if stop_event.is_set():
+                        raise AnalysisCancelled
             except subprocess.TimeoutExpired as error:
                 raise ValueError('Audio analysis timed out; retry with a larger --timeout') from error
             if result.returncode:
@@ -161,16 +203,34 @@ class LoudnessScanner:
         counts.update({row['state']: row['count'] for row in rows})
         return {'total': sum(counts.values()), **counts, 'analysis_version': ANALYSIS_VERSION}
 
-    def run(self, *, force=False, limit=None, timeout=1800, progress=None):
+    def run(self, *, force=False, limit=None, timeout=1800, progress=None,
+            ids=None, stop_event=None):
+        """Measure all available videos, or only the supplied catalog IDs.
+
+        Lock contention raises RuntimeError without processing any IDs. Callers
+        with persistent jobs should retain them for a later attempt, including
+        when the returned state is cancelled. Targeted runs omit the full
+        catalog summary so processing a queue does not repeatedly scan it.
+        """
         if (limit is not None and limit < 1) or not math.isfinite(timeout) or timeout <= 0:
             raise ValueError('Limit and timeout must be positive')
         progress = progress or (lambda event: None)
+        counts = {key: 0 for key in ('processed', 'cached', 'measured', 'below_gate', 'no_audio', 'error', 'deferred')}
+        include_catalog = ids is None
+        def summary(state):
+            result = {'state': state, **counts}
+            if include_catalog:
+                result['catalog'] = self.status()
+            return result
+        if stop_event is not None and stop_event.is_set():
+            return summary('cancelled')
         with scan_lock(self.settings.state / 'loudness.lock'):
             self.preflight()
-            ids = self.library.ids()
-            counts = {key: 0 for key in ('processed', 'cached', 'measured', 'below_gate', 'no_audio', 'error', 'deferred')}
+            ids = self.library.ids() if ids is None else list(dict.fromkeys(ids))
             progress({'state': 'starting', 'total': len(ids), 'limit': limit})
             for position, identity in enumerate(ids, 1):
+                if stop_event is not None and stop_event.is_set():
+                    break
                 if limit is not None and counts['processed'] >= limit:
                     break
                 try:
@@ -187,14 +247,22 @@ class LoudnessScanner:
                         continue
                     progress({'state': 'measuring', 'position': position, 'total': len(ids),
                               'id': identity, 'artist': row['artist'], 'title': row['title']})
-                    measurement = self.measure(source, row, timeout)
+                    measurement = (self.measure(source, row, timeout) if stop_event is None else
+                                   self.measure(source, row, timeout, stop_event=stop_event))
+                    if stop_event is not None and stop_event.is_set():
+                        raise AnalysisCancelled
                     if not self.unchanged(source, row):
                         raise ValueError('Source changed during analysis; run mvideo scan and retry')
+                except AnalysisCancelled:
+                    return summary('cancelled')
                 except (OSError, ValueError, subprocess.SubprocessError) as error:
                     measurement = {'status': 'error', 'error': str(error)[:500]}
+                if stop_event is not None and stop_event.is_set():
+                    return summary('cancelled')
                 counts['processed'] += 1
                 state = measurement['status'] if self.save(row, measurement) else 'deferred'
                 counts[state] += 1
                 progress({'state': state, 'position': position, 'total': len(ids), 'id': identity,
                           **{key: value for key, value in measurement.items() if key != 'status'}})
-            return {'state': 'finished', **counts, 'catalog': self.status()}
+            state = 'cancelled' if stop_event is not None and stop_event.is_set() else 'finished'
+            return summary(state)
