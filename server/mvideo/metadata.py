@@ -23,9 +23,11 @@ class Metadata:
         self.jobs_lock = threading.Lock()
         self.pending = set()
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mvideo-artwork')
+        self.image_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='mvideo-artwork-image')
         self.image_lock = threading.Lock()
 
     def close(self):
+        self.image_pool.shutdown(wait=True, cancel_futures=True)
         self.pool.shutdown(wait=True, cancel_futures=True)
 
     def cached(self, name):

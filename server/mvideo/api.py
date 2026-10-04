@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from pydantic import BaseModel, Field
+import asyncio
 import threading
 import subprocess
 from .auth import Auth
@@ -55,12 +56,14 @@ def create_app(settings=None):
     playback=Playback(settings,library)
     metadata=Metadata(database,settings)
     playlists=Playlists(database)
+    thumbnail_jobs=asyncio.Semaphore(8)
+    artwork_jobs=asyncio.Semaphore(8)
     @asynccontextmanager
     async def lifespan(app):
         yield
         playback.close()
         metadata.close()
-    app=FastAPI(title='mvideo',version='0.9.1',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.11.1',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
@@ -94,7 +97,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.9.1'}
+    def health(): return {'service':'mvideo','version':'0.11.1'}
 
     def playlist_result(value, sid):
         data = value.copy()
@@ -236,20 +239,28 @@ def create_app(settings=None):
         return FileResponse(path,media_type='video/mp4',headers={'Cache-Control':'private, no-store'})
 
     @app.get('/image/{identity}/{ticket}')
-    def thumbnail(identity:str,ticket:str):
-        if not auth.verify_ticket(ticket,'image:'+identity):raise HTTPException(401)
-        try:path=playback.thumbnail(identity)
-        except (OSError,ValueError,subprocess.SubprocessError):raise HTTPException(404,'Thumbnail unavailable')
-        return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
+    async def thumbnail(identity:str,ticket:str):
+        def resolve():
+            if not auth.verify_ticket(ticket,'image:'+identity):raise HTTPException(401)
+            try:path=playback.thumbnail(identity)
+            except (OSError,ValueError,subprocess.SubprocessError):raise HTTPException(404,'Thumbnail unavailable')
+            return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
+        # Image requests can arrive for the entire visible grid at once. Awaiting
+        # a separate bounded pool leaves catalog, queue and playback requests free.
+        async with thumbnail_jobs:
+            return await asyncio.get_running_loop().run_in_executor(playback.thumbnail_pool,resolve)
 
     @app.get('/artwork/{key}/{index}/{ticket}')
-    def artwork(key:str,index:int,ticket:str,name:str=Query(max_length=512)):
-        import hashlib
-        if index<0 or hashlib.sha256(name.encode()).hexdigest()!=key or not auth.verify_ticket(ticket,'artwork:'+key+':'+str(index)):
-            raise HTTPException(401)
-        try:path=metadata.image(name,index)
-        except Exception:raise HTTPException(404,'Artist artwork unavailable')
-        return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
+    async def artwork(key:str,index:int,ticket:str,name:str=Query(max_length=512)):
+        def resolve():
+            import hashlib
+            if index<0 or hashlib.sha256(name.encode()).hexdigest()!=key or not auth.verify_ticket(ticket,'artwork:'+key+':'+str(index)):
+                raise HTTPException(401)
+            try:path=metadata.image(name,index)
+            except Exception:raise HTTPException(404,'Artist artwork unavailable')
+            return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
+        async with artwork_jobs:
+            return await asyncio.get_running_loop().run_in_executor(metadata.image_pool,resolve)
     web = Path(__file__).parent/'web'
     if web.is_dir():
         @app.get('/')

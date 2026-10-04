@@ -13,6 +13,7 @@
 		3440900D28984D49A37743E1 /* Normalization.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 41CC3B52BE044B403A4DE696 /* Normalization.mp4 */; };
 		49974BC2BAC1E0C89CFE6BC4 /* PlaybackSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7030808F0CD634B427B2003D /* PlaybackSessionTests.swift */; };
 		6AACD868B7D52033AE4F1978 /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889C723F179117C90E0644F6 /* CoreTests.swift */; };
+		700A6BB9C776F8A7C1F07869 /* LibraryRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9FD28B602F9489ED7A35FA /* LibraryRecoveryTests.swift */; };
 		794547E32EC9E992F212EF67 /* Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53A6B2D9ED32E58A039193F /* Playback.swift */; };
 		9973E7A9ACC2517E003A819F /* AudioNormalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C986A24471154D595A2E517 /* AudioNormalization.swift */; };
 		9FAFCDCCF31E5C34E7616CE1 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E38E4A171993E547E576D7 /* Theme.swift */; };
@@ -44,6 +45,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0C9FD28B602F9489ED7A35FA /* LibraryRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryRecoveryTests.swift; sourceTree = "<group>"; };
 		23AD98A9839C7656AF5FD665 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		41CC3B52BE044B403A4DE696 /* Normalization.mp4 */ = {isa = PBXFileReference; path = Normalization.mp4; sourceTree = "<group>"; };
 		42AE0772F8E2A47AA58C9D39 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				889C723F179117C90E0644F6 /* CoreTests.swift */,
+				0C9FD28B602F9489ED7A35FA /* LibraryRecoveryTests.swift */,
 				A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */,
 				DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */,
 				7030808F0CD634B427B2003D /* PlaybackSessionTests.swift */,
@@ -287,6 +290,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6AACD868B7D52033AE4F1978 /* CoreTests.swift in Sources */,
+				700A6BB9C776F8A7C1F07869 /* LibraryRecoveryTests.swift in Sources */,
 				D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */,
 				1278F86BCC59DE7210478680 /* PlaybackIntegrationTests.swift in Sources */,
 				49974BC2BAC1E0C89CFE6BC4 /* PlaybackSessionTests.swift in Sources */,
@@ -383,7 +387,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -403,7 +407,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.11.0;
+				MARKETING_VERSION = 0.11.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -452,7 +456,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -466,7 +470,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.11.0;
+				MARKETING_VERSION = 0.11.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -108,7 +108,8 @@ struct NavigationStyle: ButtonStyle {
         if more && loading { return }
         let generation = UUID(); self.generation = generation
         loading = true; error = nil
-        if !more { videos = []; facets = []; playlists = []; playlist = nil; nextOffset = nil; metadata = nil }
+        defer { if self.generation == generation { loading = false } }
+        if !more { videos = []; facets = []; playlists = []; playlist = nil; nextOffset = nil; metadata = nil; loadedScope = nil; total = 0; revision = nil }
         do {
             if page == .playlists {
                 let result: PlaylistPage = try await api.request("/api/playlists")
@@ -227,7 +228,8 @@ struct BrowseScreen: View {
             await model.load(api: api, page: page, scope: scope)
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active && (page == .playlists || scope.playlist != nil) && !playback.isFullScreen { reload() }
+            if phase == .active && isCurrentPage && !model.loading && !playback.isFullScreen,
+               model.error != nil || model.loadedScope != scope || page == .playlists || scope.playlist != nil { reload() }
         }
         .onChange(of: playback.dismissalCount) {
             if isCurrentPage { restoreCounter += 1 }

@@ -113,7 +113,7 @@ struct QueueCursor: Equatable {
                 var prepared: PlaybackResponse?
                 for _ in 0..<1800 {
                     try Task.checkCancellation()
-                    let value: PlaybackResponse = try await api.request("/api/playback/" + id, method: "POST")
+                    let value = try await api.playback(id)
                     if value.state == "ready" { prepared = value; break }
                     if value.state == "error" { throw ServiceError.message(value.error ?? "This video couldn’t be prepared.") }
                     message = value.state == "busy" ? "Waiting for the server…" : "Preparing this video for Apple TV…"
@@ -228,7 +228,7 @@ struct QueueCursor: Equatable {
             }
             guard !Task.isCancelled else { return }
             upNext = previews
-            if let id = ids.first { let _: PlaybackResponse? = try? await api.request("/api/playback/" + id, method: "POST") }
+            if let id = ids.first { let _ = try? await api.playback(id) }
         }
     }
 }

@@ -54,6 +54,8 @@ class Playback:
     def __init__(self, settings, library):
         self.settings, self.library = settings, library
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mvideo-media')
+        # Slow thumbnail extraction must never occupy the API's shared workers.
+        self.thumbnail_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='mvideo-thumbnail')
         self.jobs = {}
         self.lock = threading.Lock()
         self.pins = {}
@@ -149,6 +151,8 @@ class Playback:
     def thumbnail(self, identity):
         row = self.library.get(identity)
         target = self.settings.state/'thumbnails'/f'{self.cache_key(row)}.jpg'
+        if target.exists():
+            return target
         with self.thumbnail_lock:
             if not target.exists():
                 source = self.library.source(identity)
@@ -176,4 +180,5 @@ class Playback:
                 p.unlink(missing_ok=True)
 
     def close(self):
+        self.thumbnail_pool.shutdown(wait=True,cancel_futures=True)
         self.pool.shutdown(wait=True,cancel_futures=True)

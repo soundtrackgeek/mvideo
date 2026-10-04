@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Security
 
 struct Connection: Codable, Equatable {
@@ -75,21 +76,27 @@ private final class OriginRedirectPolicy: NSObject, URLSessionTaskDelegate {
 final class API: @unchecked Sendable {
     let connection: Connection
     private let session: URLSession
-    init(_ connection: Connection) {
+    private let logger = Logger(subsystem: "com.soundtrackgeek.mvideo", category: "LibraryRequests")
+    init(_ connection: Connection, configuration: URLSessionConfiguration = .ephemeral) {
         self.connection = connection
-        let configuration = URLSessionConfiguration.ephemeral
+        let configuration = configuration.copy() as! URLSessionConfiguration
         configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 30
         configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
         configuration.urlCache = nil
         session = URLSession(configuration: configuration, delegate: OriginRedirectPolicy(), delegateQueue: nil)
     }
-    func request<T: Decodable>(_ path: String, query: [URLQueryItem] = [], method: String = "GET", body: Data? = nil) async throws -> T {
+    deinit { session.invalidateAndCancel() }
+
+    func request<T: Decodable>(_ path: String, query: [URLQueryItem] = [], method: String = "GET", body: Data? = nil,
+                               retryConnection: Bool = false) async throws -> T {
         var request = URLRequest(url: try connection.url(path, query: query))
         request.httpMethod = method
         request.httpBody = body
         request.setValue("Bearer \(connection.token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await data(for: request, retryConnection: method == "GET" || retryConnection)
         guard let response = response as? HTTPURLResponse else { throw ServiceError.message("The server did not respond.") }
         guard (200..<300).contains(response.statusCode) else {
             if response.statusCode == 401 { throw ServiceError.message("Your session has expired. Open Connection to pair again.") }
@@ -99,6 +106,29 @@ final class API: @unchecked Sendable {
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(T.self, from: data)
     }
+    private func data(for request: URLRequest, retryConnection: Bool) async throws -> (Data, URLResponse) {
+        // Log only the fixed route name, never credentials, queries, IDs or media tickets.
+        let route = request.url?.path.split(separator: "/").prefix(2).joined(separator: "/") ?? "API"
+        for attempt in 1...2 {
+            try Task.checkCancellation()
+            let started = ContinuousClock.now
+            do {
+                let result = try await session.data(for: request)
+                logger.info("\(route, privacy: .public) attempt \(attempt) completed in \(String(describing: started.duration(to: .now)), privacy: .public)")
+                return result
+            } catch {
+                try Task.checkCancellation()
+                let code = (error as? URLError)?.code
+                logger.error("\(route, privacy: .public) attempt \(attempt) failed (code \((error as NSError).code)) in \(String(describing: started.duration(to: .now)), privacy: .public)")
+                guard attempt == 1, retryConnection, code == .timedOut || code == .networkConnectionLost else { throw error }
+                // Reopen the connection without requiring an app restart. Only safe reads
+                // and explicitly repeatable queue/preparation requests may be replayed.
+                await session.reset()
+                try Task.checkCancellation()
+            }
+        }
+        throw URLError(.timedOut)
+    }
     func videos(scope: Scope, offset: Int = 0, revision: Int? = nil) async throws -> VideoPage {
         var query = scope.query + [.init(name: "offset", value: String(offset))]
         if let revision { query.append(.init(name: "revision", value: String(revision))) }
@@ -107,6 +137,11 @@ final class API: @unchecked Sendable {
     func queue(scope: Scope, shuffle: Bool, start: String?) async throws -> QueueResponse {
         var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(scope)) as! [String: Any]
         object["shuffle"] = shuffle; object["start"] = start
-        return try await request("/api/queue", method: "POST", body: JSONSerialization.data(withJSONObject: object))
+        // This POST only assembles a response; it does not store or start a queue.
+        return try await request("/api/queue", method: "POST", body: JSONSerialization.data(withJSONObject: object), retryConnection: true)
+    }
+    func playback(_ identity: String) async throws -> PlaybackResponse {
+        // The server reuses an existing preparation job for this video on every poll.
+        try await request("/api/playback/" + identity, method: "POST", retryConnection: true)
     }
 }

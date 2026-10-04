@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.1] - 2026-10-04
+
+### Fixed
+
+- Keep slow thumbnail extraction and artist-image downloads out of the shared API worker pool, preventing image backlogs from starving library, Shuffle and playback requests. Cached thumbnails bypass the extraction lock.
+- Reconnect and retry library reads, stateless queue assembly and repeatable playback preparation once after a timeout or lost connection. Each attempt has a 30-second resource limit; cancellation, authentication failures and other writes are not retried.
+- Clear cancelled library loading state and retry failed or incomplete current pages when the Apple TV app returns to the foreground.
+
+### Added
+
+- Concurrent image-load regression coverage and native request-recovery tests, plus credential-free API route/attempt timing diagnostics.
+
+### Changed
+
+- Server package and Apple TV source version are 0.11.1; local Apple TV build is 12. Windows installation and Xcode Cloud/TestFlight delivery are separate from the source release.
+
 ## [0.11.0] - 2026-10-03
 
 ### Added
