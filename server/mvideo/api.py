@@ -6,8 +6,10 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from pydantic import BaseModel, Field
 import asyncio
+import logging
 import threading
 import subprocess
+from time import perf_counter
 from .auth import Auth
 from .config import Settings
 from .database import Database
@@ -16,6 +18,9 @@ from .metadata import Metadata
 from .playback import Playback, make_queue
 from .normalization import playback_normalization
 from .playlists import Playlists, PlaylistConflict
+
+
+logger = logging.getLogger(__name__)
 
 
 class PairRequest(BaseModel):
@@ -63,21 +68,31 @@ def create_app(settings=None):
         yield
         playback.close()
         metadata.close()
-    app=FastAPI(title='mvideo',version='0.11.1',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.11.2',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
 
     @app.middleware('http')
     async def response_headers(request, call_next):
-        response = await call_next(request)
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['Referrer-Policy'] = 'no-referrer'
-        if request.url.path.startswith('/api/'):
-            response.headers['Cache-Control'] = 'no-store'
-        if request.url.path == '/' or request.url.path.startswith('/studio'):
-            response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
-        return response
+        started = perf_counter()
+        try:
+            response = await call_next(request)
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['Referrer-Policy'] = 'no-referrer'
+            if request.url.path.startswith('/api/'):
+                response.headers['Cache-Control'] = 'no-store'
+            if request.url.path == '/' or request.url.path.startswith('/studio'):
+                response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+            return response
+        finally:
+            elapsed = perf_counter()-started
+            if elapsed >= 2:
+                # Record time until response headers, including worker waits.
+                # A matched template is safe; raw paths contain media tickets.
+                route = getattr(request.scope.get('route'), 'path', '<unmatched>')
+                method = request.method if request.method in {'GET','HEAD','POST','PUT','DELETE','PATCH','OPTIONS'} else 'OTHER'
+                logger.warning('Slow request method=%s route=%s headers_elapsed=%.3fs', method, route, elapsed)
 
     def session(authorization: str = Header(default='')):
         if not authorization.startswith('Bearer '):
@@ -97,7 +112,7 @@ def create_app(settings=None):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.11.1'}
+    def health(): return {'service':'mvideo','version':'0.11.2'}
 
     def playlist_result(value, sid):
         data = value.copy()

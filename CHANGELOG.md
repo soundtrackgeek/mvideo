@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.2] - 2026-10-04
+
+### Fixed
+
+- Add catalog indexes that cover availability/year counts and the full-library queue order. Home and status requests no longer scan the table containing media-probe payloads; paginated browsing fetches only the selected rows before returning them.
+- Apply the indexes automatically to existing databases without changing catalog records, playlists, measurements or sessions.
+
+### Added
+
+- Slow-request and catalog-query stage timing in the Windows service log, without credentials, search terms or media URLs.
+
+### Changed
+
+- Server package version is 0.11.2. The compatible Apple TV app remains 0.11.1.
+
 ## [0.11.1] - 2026-10-04
 
 ### Fixed

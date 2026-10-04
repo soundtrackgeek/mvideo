@@ -26,6 +26,39 @@ def login(app,client):
     return {'Authorization':'Bearer '+response.json()['token']}
 
 
+@pytest.mark.parametrize(('path', 'route'), [
+    ('/image/private-video-id/private-session-ticket?name=private-artist', '/image/{identity}/{ticket}'),
+    ('/private-unknown-path?name=private-artist', '<unmatched>'),
+])
+def test_slow_request_logs_only_matched_template(service, monkeypatch, caplog, path, route):
+    _, client, _ = service
+    times = iter((0.0, 3.0))
+    monkeypatch.setattr('mvideo.api.perf_counter', lambda: next(times))
+    client.get(path, headers={'Authorization': 'Bearer private-bearer-token'})
+    messages = [record.getMessage() for record in caplog.records if record.name == 'mvideo.api']
+    assert messages == [f'Slow request method=GET route={route} headers_elapsed=3.000s']
+    assert 'private-' not in messages[0]
+
+
+@pytest.mark.parametrize('step', [0.01, 1.0])
+def test_catalog_timing_logs_only_slow_stage_durations(service, monkeypatch, caplog, step):
+    import itertools
+    app, _, _ = service
+    times = itertools.count(0, step)
+    monkeypatch.setattr('mvideo.library.perf_counter', lambda: next(times))
+    app.state.library.videos(q='private-search', artist='private-artist')
+    app.state.library.ids(q='private-search', artist='private-artist')
+    messages = [record.getMessage() for record in caplog.records if record.name == 'mvideo.library']
+    if step < 1:
+        assert messages == []
+    else:
+        assert messages == [
+            'Slow catalog videos total=4.000s open_revision=1.000s count=1.000s page=1.000s close=1.000s',
+            'Slow catalog ids total=3.000s open=1.000s query=1.000s close=1.000s',
+        ]
+        assert all('private-' not in message for message in messages)
+
+
 def test_background_artist_lookup_is_library_only_and_signs_images(service):
     app,client,root=service
     (root/'Band - Song (2000).mp4').write_bytes(b'x')

@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS videos(
 );
 CREATE INDEX IF NOT EXISTS videos_artist ON videos(artist COLLATE NOCASE, id);
 CREATE INDEX IF NOT EXISTS videos_year ON videos(year, id);
+-- Home and full-library queues must not scan/sort the large probe payloads.
+CREATE INDEX IF NOT EXISTS videos_browse ON videos(available, artist COLLATE NOCASE, title COLLATE NOCASE, id);
+CREATE INDEX IF NOT EXISTS videos_available_year ON videos(available, year, id);
 CREATE VIRTUAL TABLE IF NOT EXISTS search USING fts5(id UNINDEXED, artist, title, year,
  tokenize='unicode61 remove_diacritics 2');
 CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY, expires INTEGER NOT NULL);

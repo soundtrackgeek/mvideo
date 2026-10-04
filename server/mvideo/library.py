@@ -1,13 +1,16 @@
 import hashlib
 import json
+import logging
 import os
 import re
 import subprocess
 import threading
 from pathlib import Path
+from time import perf_counter
 from .parsing import parse_filename
 
 EXTENSIONS = {".mp4", ".m4v", ".mov", ".avi", ".mkv", ".mpg", ".mpeg", ".vob", ".webm", ".wmv"}
+logger = logging.getLogger(__name__)
 
 
 class Library:
@@ -169,19 +172,44 @@ class Library:
     def videos(self, limit=48, offset=0, **scope):
         where, params = self.scope(**scope)
         order, order_params = self.ordering(scope)
-        with self.database.connect() as db:
-            db.execute("BEGIN")
-            revision = db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0]
-            total = db.execute(f"SELECT count(*) FROM videos WHERE {where}", params).fetchone()[0]
-            rows = db.execute(f"SELECT * FROM videos WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?", [*params, *order_params, limit, offset]).fetchall()
+        started = perf_counter()
+        opened = counted = fetched = None
+        try:
+            with self.database.connect() as db:
+                db.execute("BEGIN")
+                revision = db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0]
+                opened = perf_counter()
+                total = db.execute(f"SELECT count(*) FROM videos WHERE {where}", params).fetchone()[0]
+                counted = perf_counter()
+                rows = db.execute(f"SELECT * FROM videos WHERE {where} ORDER BY {order} LIMIT ? OFFSET ?", [*params, *order_params, limit, offset]).fetchall()
+                fetched = perf_counter()
+        finally:
+            finished = perf_counter()
+            if finished-started >= 2:
+                # Missing checkpoints also identify a failing/stalled query.
+                opened, counted, fetched = (finished if value is None else value for value in (opened, counted, fetched))
+                logger.warning('Slow catalog videos total=%.3fs open_revision=%.3fs count=%.3fs page=%.3fs close=%.3fs',
+                               finished-started, opened-started, counted-opened, fetched-counted, finished-fetched)
         return {"items": [self.public(r) for r in rows], "total": total, "offset": offset,
                 "next_offset": offset+limit if offset+limit < total else None, "revision": revision}
 
     def ids(self, **scope):
         where, params = self.scope(**scope)
         order, order_params = self.ordering(scope)
-        with self.database.connect() as db:
-            return [r[0] for r in db.execute(f"SELECT id FROM videos WHERE {where} ORDER BY {order}", [*params, *order_params])]
+        started = perf_counter()
+        opened = fetched = None
+        try:
+            with self.database.connect() as db:
+                opened = perf_counter()
+                result = [r[0] for r in db.execute(f"SELECT id FROM videos WHERE {where} ORDER BY {order}", [*params, *order_params])]
+                fetched = perf_counter()
+            return result
+        finally:
+            finished = perf_counter()
+            if finished-started >= 2:
+                opened, fetched = (finished if value is None else value for value in (opened, fetched))
+                logger.warning('Slow catalog ids total=%.3fs open=%.3fs query=%.3fs close=%.3fs',
+                               finished-started, opened-started, fetched-opened, finished-fetched)
 
     def get(self, identity):
         with self.database.connect() as db:
