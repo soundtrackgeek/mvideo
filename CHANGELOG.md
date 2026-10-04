@@ -14,6 +14,7 @@
 ### Changed
 
 - Server package version is 0.11.2. The compatible Apple TV app remains 0.11.1.
+- Deployed 0.11.2 to the Windows service and verified startup, repeated Home/Shuffle requests, native playback, seeking and automatic next. All 104 server tests, 29 native regression tests and the three final live tests passed.
 
 ## [0.11.1] - 2026-10-04
 
