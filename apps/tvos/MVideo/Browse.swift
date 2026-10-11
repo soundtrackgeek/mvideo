@@ -9,6 +9,8 @@ struct LibraryShell: View {
     @State private var featured: FeaturedArtwork?
     @State private var requestedArtwork = false
     @State private var playback = PlaybackSession()
+    @State private var sync = LibrarySync()
+    @Environment(\.scenePhase) private var scenePhase
     private let tabs: [(String, Page)] = [("Home", .home), ("Search", .search), ("Playlists", .playlists), ("Artists", .artists), ("Years", .years), ("Decades", .decades)]
     var body: some View {
         NavigationStack(path: $path) {
@@ -33,6 +35,10 @@ struct LibraryShell: View {
         }
         .foregroundStyle(Theme.ivory)
         .environment(playback)
+        .environment(sync)
+        .task(id: scenePhase) {
+            if scenePhase == .active { await sync.monitor(api: api) }
+        }
         .disabled(playback.isFullScreen)
         .accessibilityHidden(playback.isFullScreen)
         .overlay(alignment: .bottomTrailing) {
@@ -104,49 +110,84 @@ struct NavigationStyle: ButtonStyle {
     var error: String?
     var loadedScope: Scope?
     private var generation = UUID()
-    func load(api: API, page: Page, scope: Scope, more: Bool = false) async {
-        if more && loading { return }
+    var catalogTotal: Int?
+    func updateMessage(_ status: LibraryStatus?) -> String? {
+        guard let status, let revision, status.revision != revision else { return nil }
+        let added = status.total - (catalogTotal ?? status.total)
+        return added > 0 ? "\(added.formatted()) more videos · Refresh" : "Library updated · Refresh"
+    }
+    func load(api: API, page: Page, scope: Scope, more: Bool = false, preserving: Bool = false, additionalCount: Int = 0) async {
+        if (more || preserving) && loading { return }
         let generation = UUID(); self.generation = generation
         loading = true; error = nil
         defer { if self.generation == generation { loading = false } }
-        if !more { videos = []; facets = []; playlists = []; playlist = nil; nextOffset = nil; metadata = nil; loadedScope = nil; total = 0; revision = nil }
+        let targetCount = preserving ? max(videos.count, facets.count, 1) + max(additionalCount, 0) : 1
+        if !more && !preserving {
+            videos = []; facets = []; playlists = []; playlist = nil; nextOffset = nil
+            metadata = nil; loadedScope = nil; total = 0; revision = nil; catalogTotal = nil
+        }
         do {
             if page == .playlists {
+                let status: LibraryStatus = try await api.request("/api/status")
                 let result: PlaylistPage = try await api.request("/api/playlists")
                 guard self.generation == generation, !Task.isCancelled else { return }
-                playlists = result.items; total = result.items.count
+                playlists = result.items; total = result.items.count; revision = status.revision
+                catalogTotal = status.total
             } else if let kind = page.facet {
-                let result: FacetPage = try await api.request("/api/facets/" + kind, query: [URLQueryItem(name: "q", value: scope.q), .init(name: "offset", value: String(more ? nextOffset ?? 0 : 0))])
-                guard self.generation == generation, !Task.isCancelled else { return }
-                facets = more ? facets + result.items : result.items
-                total = result.total; nextOffset = result.nextOffset
-            } else {
-                let result = try await api.videos(scope: scope, offset: more ? nextOffset ?? 0 : 0, revision: more ? revision : nil)
-                guard self.generation == generation, !Task.isCancelled else { return }
-                videos = more ? videos + result.items : result.items
-                total = result.total; nextOffset = result.nextOffset; revision = result.revision
-                if let id = scope.playlist, !more {
-                    let detail: Playlist = try await api.request("/api/playlists/" + id)
-                    guard self.generation == generation, !Task.isCancelled else { return }
-                    playlist = detail
-                }
-            }
-            loadedScope = scope; loading = false
-            if case .artist(let name) = page, !more {
+                var items: [Facet] = []
+                var offset = more ? nextOffset ?? 0 : 0
+                var expected = more ? revision : nil
+                var result: FacetPage
                 repeat {
-                    let info: ArtistMetadata = try await api.request("/api/artist", query: [
-                        .init(name: "name", value: name), .init(name: "background", value: "true")])
-                    guard self.generation == generation, !Task.isCancelled else { return }
-                    metadata = info
-                    guard info.pending == true else { break }
-                    try await Task.sleep(for: .seconds(2))
-                } while !Task.isCancelled
+                    var query = [URLQueryItem(name: "q", value: scope.q), .init(name: "offset", value: String(offset))]
+                    if let expected { query.append(.init(name: "revision", value: String(expected))) }
+                    result = try await api.request("/api/facets/" + kind, query: query)
+                    try Task.checkCancellation()
+                    if let expected, let actual = result.revision, actual != expected {
+                        throw ServiceError.message("Library changed; refresh this page again.")
+                    }
+                    expected = result.revision; items += result.items; offset = result.nextOffset ?? 0
+                } while preserving && items.count < targetCount && result.nextOffset != nil
+                guard self.generation == generation, !Task.isCancelled else { return }
+                facets = more ? facets + items : items
+                total = result.total; nextOffset = result.nextOffset; revision = result.revision
+            } else {
+                var items: [Video] = []
+                var offset = more ? nextOffset ?? 0 : 0
+                var expected = more ? revision : nil
+                var result: VideoPage
+                repeat {
+                    result = try await api.videos(scope: scope, offset: offset, revision: expected)
+                    try Task.checkCancellation()
+                    expected = result.revision; items += result.items; offset = result.nextOffset ?? 0
+                } while preserving && items.count < targetCount && result.nextOffset != nil
+                var detail: Playlist?
+                if let id = scope.playlist, !more { detail = try await api.request("/api/playlists/" + id) }
+                guard self.generation == generation, !Task.isCancelled else { return }
+                videos = more ? videos + items : items
+                total = result.total; nextOffset = result.nextOffset; revision = result.revision
+                if !more { playlist = detail }
+                if page == .home { catalogTotal = result.total }
+            }
+            loadedScope = scope
+            if case .artist(let name) = page, !more {
+                await loadMetadata(api: api, name: name, generation: generation)
             }
         } catch {
-            guard !(error is CancellationError) else { return }
-            guard self.generation == generation, !Task.isCancelled else { return }
-            self.error = error.localizedDescription; loading = false
+            guard !(error is CancellationError), self.generation == generation, !Task.isCancelled else { return }
+            self.error = error.localizedDescription
         }
+    }
+    func loadMetadata(api: API, name: String) async {
+        await loadMetadata(api: api, name: name, generation: generation)
+    }
+    private func loadMetadata(api: API, name: String, generation: UUID) async {
+        do {
+            let info: ArtistMetadata = try await api.request("/api/artist", query: [
+                .init(name: "name", value: name), .init(name: "background", value: "true")])
+            guard self.generation == generation, !Task.isCancelled else { return }
+            metadata = info
+        } catch { /* Retain the current biography and scoped thumbnail. */ }
     }
 }
 struct BrowseScreen: View {
@@ -158,11 +199,15 @@ struct BrowseScreen: View {
     @State private var query = ""
     @State private var searchField = "all"
     @Environment(PlaybackSession.self) private var playback
+    @Environment(LibrarySync.self) private var sync
     @State private var showingBiography = false
     @State private var gallery: ArtistPhotoSelection?
     @State private var launching = false
     @State private var playbackError: String?
     @State private var returnFocus: String?
+    @State private var lastBrowseFocus: String?
+    @State private var lastBrowseOffset: CGFloat = 0
+    @State private var refreshTask: Task<Void, Never>?
     @State private var restoreCounter = 0
     @State private var scrollPosition = ScrollPosition()
     @State private var scrollOffset: CGFloat = 0
@@ -207,7 +252,10 @@ struct BrowseScreen: View {
             }
             .background(Theme.background)
             .scrollPosition($scrollPosition)
-            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in scrollOffset = offset }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in
+                scrollOffset = offset
+                if focus == lastBrowseFocus { lastBrowseOffset = offset }
+            }
             .onChange(of: restoreCounter) {
                 if isCurrentPage, let returnFocus {
                     // Wait for the playback overlay to release focus and re-enable
@@ -220,13 +268,42 @@ struct BrowseScreen: View {
                     }
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                if isCurrentPage, let message = model.updateMessage(sync.status) {
+                    Button { refreshInPlace(proxy: proxy) } label: { Label(message, systemImage: "arrow.clockwise") }
+                        .buttonStyle(PillStyle()).disabled(model.loading)
+                        .focused($focus, equals: "library-refresh")
+                        .accessibilityIdentifier("library-refresh")
+                        .padding(.trailing, 70).padding(.top, 20)
+                }
+            }
         }
         .task(id: scope) {
             guard model.loadedScope != scope else { return }
             if page == .search || page.facet == "artists" { try? await Task.sleep(for: .milliseconds(350)) }
             guard !Task.isCancelled else { return }
             await model.load(api: api, page: page, scope: scope)
+            if let status = sync.status, model.revision == status.revision { model.catalogTotal = status.total }
         }
+        .task(id: artistArtworkVersion) {
+            guard case .artist(let name) = page, model.loadedScope == scope else { return }
+            await model.loadMetadata(api: api, name: name)
+        }
+        .onChange(of: sync.status) { _, status in
+            if let status, model.revision == status.revision { model.catalogTotal = status.total }
+        }
+        .onChange(of: focus) { _, value in
+            if let value, value != "library-refresh",
+               lastBrowseFocus == nil || model.videos.contains(where: { $0.id == value })
+                || value.hasPrefix("facet-") || value.hasPrefix("playlist-") || value == "search-input" {
+                lastBrowseFocus = value
+                lastBrowseOffset = scrollOffset
+            }
+        }
+        .onChange(of: isCurrentPage) { _, current in
+            if !current { refreshTask?.cancel() }
+        }
+        .onDisappear { refreshTask?.cancel() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && isCurrentPage && !model.loading && !playback.isFullScreen,
                model.error != nil || model.loadedScope != scope || page == .playlists || scope.playlist != nil { reload() }
@@ -310,14 +387,14 @@ struct BrowseScreen: View {
                         Text("\(playlist.availableCount) videos").font(.system(size: 21)).foregroundStyle(Theme.secondary)
                         Text(playlist.description).font(.system(size: 20)).foregroundStyle(Theme.secondary).lineLimit(2)
                     }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(CardStyle()).accessibilityIdentifier("playlist-" + playlist.id)
+                }.buttonStyle(CardStyle()).focused($focus, equals: "playlist-" + playlist.id).id("playlist-" + playlist.id).accessibilityIdentifier("playlist-" + playlist.id)
             }
-        }.focusSection()
+        }.scrollTargetLayout().focusSection()
     }
     private var search: some View {
         VStack(alignment: .leading, spacing: 24) {
             TextField("Search artist, song title or year", text: $query)
-                .autocorrectionDisabled().textInputAutocapitalization(.never).accessibilityIdentifier("search-input")
+                .autocorrectionDisabled().textInputAutocapitalization(.never).accessibilityIdentifier("search-input").focused($focus, equals: "search-input")
                 .frame(maxWidth: 1200)
             if page == .search {
                 HStack(spacing: 20) {
@@ -379,13 +456,13 @@ struct BrowseScreen: View {
                                 Text(video.title).font(.system(size: 25, weight: .semibold)).lineLimit(1)
                                 Text(video.subtitle).font(.system(size: 21)).foregroundStyle(Theme.secondary).lineLimit(1)
                             }.frame(maxWidth: .infinity, alignment: .leading)
-                        }.buttonStyle(CardStyle()).focused($focus, equals: video.id).id(video.id).accessibilityIdentifier("video-" + video.id)
+                        }.buttonStyle(CardStyle()).focused($focus, equals: video.id).accessibilityIdentifier("video-" + video.id)
                         if page == .search, let artist = video.artist {
                             NavigationLink("Explore \(artist)", value: Page.artist(artist)).buttonStyle(NavigationStyle())
                         }
-                    }
+                    }.id(video.id)
                 }
-            }.focusSection()
+            }.scrollTargetLayout().focusSection()
         }
     }
     private var facetGrid: some View {
@@ -394,9 +471,9 @@ struct BrowseScreen: View {
                 NavigationLink(value: facetPage(facet)) {
                     FacetCard(api: api, facet: facet, title: page == .decades ? "\(facet.name)s" : facet.name,
                               artistName: page == .artists ? facet.name : nil)
-                }.buttonStyle(CardStyle()).accessibilityIdentifier("facet-" + facet.name)
+                }.buttonStyle(CardStyle()).focused($focus, equals: "facet-" + facet.name).id("facet-" + facet.name).accessibilityIdentifier("facet-" + facet.name)
             }
-        }.focusSection()
+        }.scrollTargetLayout().focusSection()
     }
     private func artistPhotos(_ metadata: ArtistMetadata) -> some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -444,7 +521,55 @@ struct BrowseScreen: View {
             }.padding(90)
         }
     }
-    private func reload() { Task { await model.load(api: api, page: page, scope: scope) } }
+    private var artistArtworkVersion: String {
+        if case .artist(let name) = page {
+            return sync.artworkVersion(name) + (model.metadata?.deferred == true ? ":deferred:\(sync.artworkCompletion)" : "")
+        }
+        return ""
+    }
+    private func refreshInPlace(proxy: ScrollViewProxy? = nil) {
+        let savedFocus = focus == "library-refresh" ? lastBrowseFocus : focus
+        let savedOffset = focus == "library-refresh" ? lastBrowseOffset : scrollOffset
+        let savedScope = scope
+        let previousIndex = savedFocus.flatMap { value in
+            model.videos.firstIndex { $0.id == value } ?? model.facets.firstIndex { "facet-" + $0.name == value }
+                ?? model.playlists.firstIndex { "playlist-" + $0.id == value }
+        }
+        refreshTask?.cancel()
+        refreshTask = Task {
+            await model.load(api: api, page: page, scope: savedScope, preserving: true,
+                             additionalCount: (sync.status?.total ?? 0) - (model.catalogTotal ?? sync.status?.total ?? 0))
+            guard !Task.isCancelled, scope == savedScope, isCurrentPage, !playback.isFullScreen, model.error == nil else { return }
+            if let status = sync.status, model.revision == status.revision { model.catalogTotal = status.total }
+            let retained = savedFocus.map { value in
+                model.videos.contains { $0.id == value } || model.facets.contains { "facet-" + $0.name == value }
+                    || model.playlists.contains { "playlist-" + $0.id == value }
+                    || ["shuffle", "play-all", "search-shuffle", "search-input"].contains(value)
+            } ?? false
+            let nextFocus = retained ? savedFocus : (model.videos.first?.id ?? model.facets.first.map { "facet-" + $0.name }
+                ?? model.playlists.first.map { "playlist-" + $0.id })
+            let newIndex = nextFocus.flatMap { value in
+                model.videos.firstIndex { $0.id == value } ?? model.facets.firstIndex { "facet-" + $0.name == value }
+                    ?? model.playlists.firstIndex { "playlist-" + $0.id == value }
+            }
+            // Let the new lazy-grid rows mount and the disappearing pill release
+            // focus. If insertions moved the card, preserve the browsing location
+            // by bringing that same card into view instead of its old pixel offset.
+            try? await Task.sleep(for: .milliseconds(100))
+            guard !Task.isCancelled, scope == savedScope else { return }
+            if newIndex != previousIndex, let nextFocus {
+                if let proxy { proxy.scrollTo(nextFocus, anchor: .center) }
+                else { scrollPosition.scrollTo(id: nextFocus, anchor: .center) }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            guard !Task.isCancelled, scope == savedScope else { return }
+            focus = nextFocus
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, scope == savedScope, isCurrentPage, !playback.isFullScreen else { return }
+            if newIndex == previousIndex { scrollPosition.scrollTo(y: savedOffset) }
+        }
+    }
+    private func reload() { refreshInPlace() }
     private func launch(shuffle: Bool, start: String?, origin: String) {
         guard !launching else { return }
         launching = true; playbackError = nil; returnFocus = origin; returnOffset = scrollOffset

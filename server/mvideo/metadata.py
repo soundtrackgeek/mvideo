@@ -25,6 +25,7 @@ class Metadata:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mvideo-artwork')
         self.image_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='mvideo-artwork-image')
         self.image_lock = threading.Lock()
+        self.on_ready = lambda name: None
 
     def close(self):
         self.image_pool.shutdown(wait=True, cancel_futures=True)
@@ -56,14 +57,19 @@ class Metadata:
             if key not in self.pending and len(self.pending) < 64:
                 self.pending.add(key)
                 self.pool.submit(self._load, name, key)
-        return (data or {'state': 'loading', 'images': [], 'biography': None}) | {'pending': True}
+            deferred = key not in self.pending
+        return (data or {'state': 'loading', 'images': [], 'biography': None}) | {'pending': True, 'deferred': deferred}
 
     def _load(self, name, key):
+        completed = False
         try:
             self.artist(name)
+            completed = True
         finally:
             with self.jobs_lock:
                 self.pending.discard(key)
+            if completed:
+                self.on_ready(name)
 
     def request(self, url, params=None, headers=None):
         # Caller holds the provider lock: at most one request/second across providers.

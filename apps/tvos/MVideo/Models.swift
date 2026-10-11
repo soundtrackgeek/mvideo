@@ -38,7 +38,7 @@ struct Facet: Decodable, Identifiable, Hashable {
         else { name = String(try c.decode(Int.self, forKey: .name)) }
     }
 }
-struct FacetPage: Decodable { let items: [Facet]; let total: Int; let nextOffset: Int? }
+struct FacetPage: Decodable { let items: [Facet]; let total: Int; let nextOffset: Int?; let revision: Int? }
 struct ArtistMetadata: Decodable {
     let state: String
     let biography: String?
@@ -48,6 +48,7 @@ struct ArtistMetadata: Decodable {
     let imageAttribution: String?
     let imageSourceUrl: String?
     let pending: Bool?
+    let deferred: Bool?
 }
 struct FeaturedArtwork: Decodable {
     let artist: String

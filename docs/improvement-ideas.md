@@ -1,6 +1,6 @@
 # mvideo: improvement and feature ideas
 
-Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is now implemented and deployed on Windows as **server 0.12.0**; the remaining entries are proposals. The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
+Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is implemented and deployed as **server 0.12.0**. Improvement 2 is implemented in **server and Apple TV 0.13.0**, reviewed on 2026-10-11; the remaining entries are proposals. Deployment/delivery evidence is in the [verification notes](implementation/VERIFICATION.md). The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
 
 **Effort:** **S** ≈ a day · **M** ≈ several days · **L** ≈ a week or more. **Impact** is a judgement of how much the change affects day-to-day use of the library.
 
@@ -8,7 +8,7 @@ Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** a
 
 If only a handful of these get done, these give the most for the effort:
 
-1. **Automate the "add videos" pipeline and refresh Apple TV live** (improvements 1–2). Automatic indexing and measurement are implemented in server 0.12.0. Live Apple TV refresh remains deferred to improvement 2, so the app still needs a manual library reload.
+1. **Automate the "add videos" pipeline and refresh Apple TV live** (improvements 1–2). Automatic indexing and measurement are implemented in server 0.12.0; server and Apple TV 0.13.0 add a live Refresh notice and artwork completion events.
 2. **Pre-convert the ~554 non-direct videos and keep their frame rate** (improvements 4–5). This removes the "Preparing…" wait and the 30 fps judder.
 3. **Home shelves, play history and favourites** (improvement 10, features 1–2). Home currently shows the same alphabetical grid on every launch.
 4. **"Music television" channels with on-screen credits** (feature 4). This fits the app's tagline better than anything else on the list.
@@ -20,7 +20,7 @@ If only a handful of these get done, these give the most for the effort:
 
 ### 1. Adding new videos (index → measure → reload)
 
-**Implemented and deployed in server 0.12.0:** Routine additions are now copy completed files, wait for indexing and audio analysis, then reload Apple TV. See the [updated operating procedure](../README.md#adding-replacing-or-renaming-music-videos).
+**Implemented and deployed in server 0.12.0:** Routine additions are now copy completed files, wait for indexing and audio analysis, then select the live Refresh notice on Apple TV 0.13.0. See the [updated operating procedure](../README.md#adding-replacing-or-renaming-music-videos).
 
 - A `watchdog` polling observer checks every 15 seconds by default, including on SMB mounts. Notifications are coalesced for 5 seconds before scanning. Native filesystem events and an off mode are configurable, and startup/30-minute scans remain a fallback.
 - Every catalog scan records exactly the new or changed IDs in a durable `loudness_jobs` queue, including scans run from the CLI. A service worker reuses `LoudnessScanner` to measure one video at a time at low priority with the shared `loudness.lock`. Pending jobs survive restart; failed results are saved without an endless automatic retry loop. The CLI remains available for bulk analysis, retries and `--force` runs.
@@ -28,18 +28,20 @@ If only a handful of these get done, these give the most for the effort:
 - Scans load existing catalog metadata in one batch, avoiding per-file database reads for unchanged files, and write only entries needing updates.
 - Authenticated `/api/status` includes ingestion watcher/worker state, pending job count and loudness coverage. Watch mode, polling interval and stability interval are configurable; `--scan-interval 0` disables startup/periodic scans independently of the watcher.
 
-**Remaining:** Apple TV library refresh is still manual. Live refresh belongs to improvement 2 and is deferred. Windows deployment and live API checks passed on 2026-10-04; no new physical Apple TV verification was performed for this server release.
+**Follow-up implemented:** Improvement 2 adds live change notices and in-place refresh in server and Apple TV 0.13.0. Windows ingestion deployment and live API checks passed on 2026-10-04; physical Apple TV verification is recorded separately from source and simulator checks.
 
 **Impact:** High
 
 ### 2. Keeping Apple TV in sync with the library
 
-**Today:** The catalog already has a `revision` counter, but the app reloads only after an error, a scope change, or (for playlists) a return from the background. The README tells you to fully close the app after adding videos. Artist tiles and pages poll every 2–3 seconds until artwork resolves ([FacetCard.swift:50](../apps/tvos/MVideo/FacetCard.swift#L50), [Browse.swift:142](../apps/tvos/MVideo/Browse.swift#L142)).
+**Implemented in server and Apple TV 0.13.0 (2026-10-11):**
 
-**Improve by:**
-- Push changes with Server-Sent Events. The pinned FastAPI 0.135 already includes native `fastapi.sse.EventSourceResponse`. A simpler alternative is to poll `/api/status` when the app becomes active and every few minutes.
-- When the revision changes, show a non-blocking "12 new videos · Refresh" pill and refresh the current page in place, keeping focus.
-- Send an `artwork-ready` event for an artist so tiles stop polling.
+- One authenticated `/api/events` connection sends a catalog snapshot, `library-changed` notices and artist-specific `artwork-ready` events. The server checks the persisted catalog revision every two seconds, including changes made by a separate CLI scan. Native FastAPI SSE supplies heartbeat comments; revoked sessions stop streaming.
+- The app offers a non-blocking **N more videos · Refresh** pill for a net increase in available videos, or **Library updated · Refresh** for other catalog changes. Selecting it replaces the current results only after all previously loaded pages have refreshed successfully, restores surviving focus and scroll position, and retains the existing playback queue.
+- Visible artist tiles/pages make an initial background lookup, then update from completion events instead of polling every 2–3 seconds. A reconnect snapshot rechecks visible artwork; a bounded server replay window resynchronizes slow subscribers.
+- Foreground activation and two-minute status checks catch missed catalog changes. Connection failures use bounded retry delays; older servers fall back to status polling. During event outages the shared two-minute check also rechecks artwork. Facet responses now carry a revision and reject inconsistent pagination.
+
+See the [operating procedure](../README.md#adding-replacing-or-renaming-music-videos) and [verification/delivery evidence](implementation/VERIFICATION.md). Physical Apple TV behavior needs separate owner verification.
 
 **Effort:** S–M · **Impact:** High
 
@@ -597,7 +599,7 @@ If only a handful of these get done, these give the most for the effort:
    - Automatic loading on scroll
 2. **Foundations (M):**
    - Automatic loudness measurement and file watching: implemented and deployed in server 0.12.0
-   - Live Apple TV refresh over Server-Sent Events
+   - Live Apple TV refresh over Server-Sent Events: implemented in server and Apple TV 0.13.0
    - Pre-converting non-direct videos
    - Nuke image loading
    - Play history and favourites

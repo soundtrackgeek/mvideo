@@ -76,6 +76,7 @@ private final class OriginRedirectPolicy: NSObject, URLSessionTaskDelegate {
 final class API: @unchecked Sendable {
     let connection: Connection
     private let session: URLSession
+    private let eventSession: URLSession
     private let logger = Logger(subsystem: "com.soundtrackgeek.mvideo", category: "LibraryRequests")
     init(_ connection: Connection, configuration: URLSessionConfiguration = .ephemeral) {
         self.connection = connection
@@ -86,8 +87,37 @@ final class API: @unchecked Sendable {
         configuration.urlCredentialStorage = nil
         configuration.urlCache = nil
         session = URLSession(configuration: configuration, delegate: OriginRedirectPolicy(), delegateQueue: nil)
+        // Heartbeats keep the request alive. A separate transport prevents ordinary
+        // request recovery from resetting the long-lived event connection.
+        configuration.timeoutIntervalForRequest = 45
+        configuration.timeoutIntervalForResource = 24 * 60 * 60
+        eventSession = URLSession(configuration: configuration, delegate: OriginRedirectPolicy(), delegateQueue: nil)
     }
-    deinit { session.invalidateAndCancel() }
+    deinit { session.invalidateAndCancel(); eventSession.invalidateAndCancel() }
+
+    func events(receive: @MainActor (LibraryEvent) -> Void) async throws {
+        var request = URLRequest(url: try connection.url("/api/events"))
+        request.setValue("Bearer \(connection.token)", forHTTPHeaderField: "Authorization")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        let (bytes, response) = try await eventSession.bytes(for: request)
+        guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        if response.statusCode == 404 { throw EventStreamError.unavailable }
+        guard response.statusCode == 200,
+              response.mimeType == "text/event-stream" else { throw URLError(.badServerResponse) }
+        var decoder = EventDecoder()
+        var line: [UInt8] = []
+        for try await byte in bytes {
+            try Task.checkCancellation()
+            if byte == 10 {
+                if line.last == 13 { line.removeLast() }
+                if let event = try decoder.append(String(decoding: line, as: UTF8.self)) { await receive(event) }
+                line.removeAll(keepingCapacity: true)
+            } else {
+                line.append(byte)
+                guard line.count <= 65536 else { throw URLError(.dataLengthExceedsMaximum) }
+            }
+        }
+    }
 
     func request<T: Decodable>(_ path: String, query: [URLQueryItem] = [], method: String = "GET", body: Data? = nil,
                                retryConnection: Bool = false) async throws -> T {

@@ -212,6 +212,153 @@ final class LibraryRecoveryTests: XCTestCase {
         XCTAssertNil(model.error)
     }
 
+    @MainActor func testRefreshRetainsLoadedPagesUntilAllNewPagesSucceed() async throws {
+        let secondPageStarted = expectation(description: "Second refresh page started")
+        let fixture = RecoveryFixture { request, attempt in
+            let offset = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "offset" }?.value
+            if offset == "1" { return .pending(secondPageStarted) }
+            if attempt == 1 { return .response(200, Self.pageJSON(["old1", "old2"], total: 2, revision: 7)) }
+            return .response(200, Self.pageJSON(["new1"], total: 2, revision: 8, next: 1))
+        }
+        defer { fixture.stop() }
+        let api = fixture.api()
+        let model = BrowseModel()
+        await model.load(api: api, page: .home, scope: Scope())
+        let refresh = Task { await model.load(api: api, page: .home, scope: Scope(), preserving: true) }
+        await fulfillment(of: [secondPageStarted], timeout: 3)
+        XCTAssertEqual(model.videos.map(\.id), ["old1", "old2"])
+        XCTAssertEqual(model.revision, 7)
+        XCTAssertTrue(model.loading)
+        XCTAssertTrue(fixture.finishPending(where: { $0.url?.query?.contains("offset=1") == true },
+            with: .response(200, Self.pageJSON(["new2"], total: 2, revision: 8))))
+        await refresh.value
+        XCTAssertEqual(model.videos.map(\.id), ["new1", "new2"])
+        XCTAssertEqual(model.revision, 8)
+        XCTAssertFalse(model.loading)
+        XCTAssertNil(model.error)
+        XCTAssertTrue(fixture.requests.last?.url?.query?.contains("revision=8") == true)
+    }
+
+    @MainActor func testFailedOrCancelledRefreshKeepsTheUsableSnapshotAndNotice() async {
+        for cancel in [false, true] {
+            let started = expectation(description: "Refresh started")
+            let fixture = RecoveryFixture { _, attempt in
+                attempt == 1 ? .response(200, Self.page) : .pending(started)
+            }
+            defer { fixture.stop() }
+            let api = fixture.api()
+            let model = BrowseModel()
+            await model.load(api: api, page: .home, scope: Scope())
+            let refresh = Task { await model.load(api: api, page: .home, scope: Scope(), preserving: true) }
+            await fulfillment(of: [started], timeout: 3)
+            if cancel { refresh.cancel() }
+            else { XCTAssertTrue(fixture.finishPending(where: { _ in true }, with: .response(409, #"{"detail":"Library changed"}"#))) }
+            await refresh.value
+            XCTAssertEqual(model.videos.map(\.id), ["recovered"])
+            XCTAssertEqual(model.loadedScope, Scope())
+            XCTAssertEqual(model.revision, 7)
+            XCTAssertFalse(model.loading)
+            XCTAssertEqual(model.updateMessage(LibraryStatus(revision: 8, total: 13)), "12 more videos · Refresh")
+            if cancel { XCTAssertNil(model.error) } else { XCTAssertNotNil(model.error) }
+        }
+    }
+
+    @MainActor func testRefreshLoadsExtraPagesForNewInsertionsBeforeExistingFocus() async {
+        let fixture = RecoveryFixture { request, attempt in
+            if request.url?.query?.contains("offset=2") == true {
+                return .response(200, Self.pageJSON(["old2"], total: 3, revision: 8))
+            }
+            if attempt == 1 { return .response(200, Self.pageJSON(["old1", "old2"], total: 2, revision: 7)) }
+            return .response(200, Self.pageJSON(["inserted", "old1"], total: 3, revision: 8, next: 2))
+        }
+        defer { fixture.stop() }
+        let api = fixture.api()
+        let model = BrowseModel()
+        await model.load(api: api, page: .home, scope: Scope())
+        await model.load(api: api, page: .home, scope: Scope(), preserving: true, additionalCount: 1)
+        XCTAssertEqual(model.videos.map(\.id), ["inserted", "old1", "old2"])
+        XCTAssertNil(model.nextOffset)
+    }
+
+    @MainActor func testSharedSyncTargetsArtworkAndResynchronizesAfterReconnect() {
+        let sync = LibrarySync()
+        sync.receive(.snapshot(LibraryStatus(revision: 7, total: 100)))
+        let band = sync.artworkVersion("Band")
+        let other = sync.artworkVersion("Other")
+        sync.receive(.artwork("BAND"))
+        XCTAssertNotEqual(sync.artworkVersion("Band"), band)
+        XCTAssertEqual(sync.artworkVersion("Other"), other)
+        sync.receive(.changed(LibraryStatus(revision: 8, total: 112)))
+        XCTAssertEqual(sync.status, LibraryStatus(revision: 8, total: 112))
+        XCTAssertEqual(sync.artworkVersion("Other"), other)
+        sync.receive(.snapshot(LibraryStatus(revision: 8, total: 112)))
+        XCTAssertNotEqual(sync.artworkVersion("Other"), other)
+        let model = BrowseModel()
+        model.revision = 7; model.catalogTotal = 100
+        XCTAssertEqual(model.updateMessage(sync.status), "12 more videos · Refresh")
+        model.revision = 8
+        model.catalogTotal = 112
+        XCTAssertNil(model.updateMessage(sync.status))
+        sync.receive(.changed(LibraryStatus(revision: 9, total: 112)))
+        XCTAssertEqual(model.updateMessage(sync.status), "Library updated · Refresh")
+    }
+
+    func testEventDecoderHandlesCommentsMultilineDataAndUnknownEvents() throws {
+        var decoder = EventDecoder()
+        let lines = [": ping", "", "retry: 5000", "event: snapshot", "data: {", "data: \"revision\":7,\"total\":100}", ""]
+        var events: [LibraryEvent] = []
+        for line in lines { if let event = try decoder.append(line) { events.append(event) } }
+        XCTAssertEqual(events, [.snapshot(LibraryStatus(revision: 7, total: 100))])
+        XCTAssertNil(try decoder.append("event: future-event"))
+        XCTAssertNil(try decoder.append("data: not-json"))
+        XCTAssertNil(try decoder.append(""))
+        XCTAssertNil(try decoder.append("event: artwork-ready"))
+        XCTAssertNil(try decoder.append(#"data: {"artist":"Band"}"#))
+        XCTAssertEqual(try decoder.append(""), .artwork("Band"))
+        XCTAssertNil(try decoder.append("event: snapshot"))
+        XCTAssertNil(try decoder.append("data: invalid"))
+        XCTAssertThrowsError(try decoder.append(""))
+        var bounded = EventDecoder()
+        XCTAssertThrowsError(try bounded.append("data: " + String(repeating: "x", count: 65537)))
+    }
+
+    @MainActor func testNativeEventTransportUsesAuthenticationAndCompleteFrames() async throws {
+        let fixture = RecoveryFixture { _, _ in .response(200,
+            "event: snapshot\r\ndata: {\"revision\":7,\"total\":1}\r\n\r\n: ping\r\n\r\nevent: artwork-ready\r\ndata: {\"artist\":\"Band\"}\r\n\r\nevent: library-changed\ndata: {\"revision\":8,") }
+        defer { fixture.stop() }
+        var events: [LibraryEvent] = []
+        try await fixture.api().events { events.append($0) }
+        XCTAssertEqual(events, [.snapshot(LibraryStatus(revision: 7, total: 1)), .artwork("Band")])
+        XCTAssertEqual(fixture.requests.first?.value(forHTTPHeaderField: "Authorization"), "Bearer recovery-test")
+        XCTAssertEqual(fixture.requests.first?.value(forHTTPHeaderField: "Accept"), "text/event-stream")
+    }
+
+    @MainActor func testOlderServerUsesStatusFallbackAndMonitorCancels() async {
+        let statusStarted = expectation(description: "Status fallback checked")
+        let eventsStarted = expectation(description: "Events checked")
+        let fixture = RecoveryFixture { request, _ in
+            if request.url?.path == "/api/events" { eventsStarted.fulfill(); return .response(404, "{}") }
+            statusStarted.fulfill()
+            return .response(200, #"{"revision":7,"total":1}"#)
+        }
+        defer { fixture.stop() }
+        let api = fixture.api()
+        let sync = LibrarySync()
+        let monitor = Task { await sync.monitor(api: api) }
+        await fulfillment(of: [statusStarted, eventsStarted], timeout: 3)
+        for _ in 0..<100 where sync.status == nil { await Task.yield() }
+        monitor.cancel()
+        await monitor.value
+        XCTAssertEqual(sync.status, LibraryStatus(revision: 7, total: 1))
+        XCTAssertEqual(fixture.requests.count, 2)
+    }
+
+    private static func pageJSON(_ ids: [String], total: Int, revision: Int, next: Int? = nil) -> String {
+        let items = ids.map { ["id": $0, "title": $0, "warnings": []] as [String: Any] }
+        let value: [String: Any] = ["items": items, "total": total, "revision": revision, "next_offset": next as Any? ?? NSNull()]
+        return String(data: try! JSONSerialization.data(withJSONObject: value), encoding: .utf8)!
+    }
+
     private static let page = #"{"items":[{"id":"recovered","artist":"'Til Tuesday","title":"Voices Carry","year":1985,"warnings":[]}],"total":1,"next_offset":null,"revision":7}"#
 
     private static func query(_ request: URLRequest) -> String? {
@@ -322,7 +469,7 @@ private final class RecoveryURLProtocol: URLProtocol {
         stateLock.unlock()
         switch step {
         case .response(let status, let body):
-            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": request.url?.path == "/api/events" ? "text/event-stream" : "application/json"])!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(body.utf8))
             client?.urlProtocolDidFinishLoading(self)

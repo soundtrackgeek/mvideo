@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from typing import Literal
 from fastapi import FastAPI, Depends, HTTPException, Query, Header
 from fastapi.responses import FileResponse
+from fastapi.sse import EventSourceResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from .playback import Playback, make_queue
 from .normalization import playback_normalization
 from .playlists import Playlists, PlaylistConflict
 from .ingestion import Ingestion
+from .events import LibraryEvents
 
 
 logger = logging.getLogger(__name__)
@@ -58,8 +60,10 @@ def create_app(settings=None, *, scan_interval=1800):
     database=Database(settings.state/'library.sqlite3')
     library=Library(settings,database)
     auth=Auth(database)
+    events=LibraryEvents(database,auth)
     playback=Playback(settings,library)
     metadata=Metadata(database,settings)
+    metadata.on_ready=events.artwork_ready
     playlists=Playlists(database)
     ingestion=Ingestion(settings,database,library,scan_interval=scan_interval)
     thumbnail_jobs=asyncio.Semaphore(8)
@@ -73,11 +77,12 @@ def create_app(settings=None, *, scan_interval=1800):
             await asyncio.to_thread(ingestion.close)
             playback.close()
             metadata.close()
-    app=FastAPI(title='mvideo',version='0.12.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.13.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
     app.state.ingestion=ingestion
+    app.state.events=events
 
     @app.middleware('http')
     async def response_headers(request, call_next):
@@ -87,7 +92,7 @@ def create_app(settings=None, *, scan_interval=1800):
             response.headers['X-Content-Type-Options'] = 'nosniff'
             response.headers['Referrer-Policy'] = 'no-referrer'
             if request.url.path.startswith('/api/'):
-                response.headers['Cache-Control'] = 'no-store'
+                response.headers['Cache-Control'] = 'no-store, no-transform' if request.url.path == '/api/events' else 'no-store'
             if request.url.path == '/' or request.url.path.startswith('/studio'):
                 response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
             return response
@@ -118,7 +123,7 @@ def create_app(settings=None, *, scan_interval=1800):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.12.0'}
+    def health(): return {'service':'mvideo','version':'0.13.0'}
 
     def playlist_result(value, sid):
         data = value.copy()
@@ -176,8 +181,13 @@ def create_app(settings=None, *, scan_interval=1800):
         with database.connect() as db:
             total=db.execute('SELECT count(*) FROM videos WHERE available=1').fetchone()[0]
             unknown=db.execute('SELECT count(*) FROM videos WHERE available=1 AND year IS NULL').fetchone()[0]
-        return {'total':total,'unknown_years':unknown,'revision':database.revision(),'scan':library.scan_status,
+        return events.snapshot() | {'unknown_years':unknown,'scan':library.scan_status,
                 'ingestion':ingestion.status(),'loudness':ingestion.scanner.status()}
+
+    @app.get('/api/events',response_class=EventSourceResponse)
+    async def changes(sid=Depends(session)):
+        async for event in events.stream(sid):
+            yield event
 
     @app.post('/api/scan')
     def scan(sid=Depends(session)):
@@ -199,8 +209,10 @@ def create_app(settings=None, *, scan_interval=1800):
         return public(video(identity),sid)
 
     @app.get('/api/facets/{kind}')
-    def facets(kind:Literal['artists','years','decades'],q:str=Query('',max_length=256),limit:int=Query(60,ge=1,le=100),offset:int=Query(0,ge=0),sid=Depends(session)):
+    def facets(kind:Literal['artists','years','decades'],q:str=Query('',max_length=256),limit:int=Query(60,ge=1,le=100),offset:int=Query(0,ge=0),revision:int|None=None,sid=Depends(session)):
         result=library.facets(kind,q,limit,offset)
+        if revision is not None and result['revision']!=revision:
+            raise HTTPException(409,'Library changed; refresh this page')
         artists=metadata.cached_artwork([item['name'] for item in result['items']]) if kind=='artists' else set()
         for item in result['items']:
             identity=item.pop('representative_id')

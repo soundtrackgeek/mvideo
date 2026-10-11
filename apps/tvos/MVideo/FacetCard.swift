@@ -6,6 +6,7 @@ struct FacetCard: View {
     let title: String
     var artistName: String? = nil
     @State private var metadata: ArtistMetadata?
+    @Environment(LibrarySync.self) private var sync
 
     private var imagePath: String? { metadata?.images.first ?? facet.image ?? facet.thumbnail }
     private var attribution: String? { metadata?.images.isEmpty == false ? "fanart.tv" : facet.imageAttribution }
@@ -38,18 +39,18 @@ struct FacetCard: View {
                 .padding(26)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .task(id: artistName) {
+            .task(id: artworkVersion) {
                 guard let artistName else { return }
                 do {
-                    repeat {
-                        let result: ArtistMetadata = try await api.request("/api/artist", query: [
-                            .init(name: "name", value: artistName), .init(name: "background", value: "true")])
-                        try Task.checkCancellation()
-                        metadata = result
-                        guard result.pending == true else { return }
-                        try await Task.sleep(for: .seconds(3))
-                    } while !Task.isCancelled
+                    let result: ArtistMetadata = try await api.request("/api/artist", query: [
+                        .init(name: "name", value: artistName), .init(name: "background", value: "true")])
+                    try Task.checkCancellation()
+                    metadata = result
                 } catch { /* Keep cached artwork or the scoped video still. */ }
             }
+    }
+    private var artworkVersion: String {
+        (artistName ?? "") + ":" + sync.artworkVersion(artistName ?? "")
+            + (metadata?.deferred == true ? ":deferred:\(sync.artworkCompletion)" : "")
     }
 }

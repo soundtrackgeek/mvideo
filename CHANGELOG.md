@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.13.0] - 2026-10-11
+
+### Added
+
+- Authenticated live catalog and artwork completion events for Apple TV, with heartbeat comments, session revocation, reconnect snapshots and a bounded artwork replay window. Persisted catalog revisions include changes made by CLI scans.
+- A non-blocking library Refresh pill, showing the net increase in available videos where known. Refresh keeps loaded pages, surviving focus and scroll position, and leaves the active playback queue intact.
+- Shared foreground/two-minute status checks and recovery for older servers or interrupted event connections. Deferred artwork requests retry when another completion frees a worker slot.
+
+### Fixed
+
+- Reset browsing and synchronization state when the paired API connection changes.
+
+### Changed
+
+- Artist tiles and pages update from artwork completion events instead of polling every 2–3 seconds. Visible artwork is rechecked after reconnecting and during event outages.
+- Refresh results are committed together; failed, cancelled or inconsistent refreshes retain the usable page and update notice. Facets now return/check catalog revisions during pagination.
+- Server and Apple TV source versions are 0.13.0; local Apple TV build is 13. Windows deployment, Cloud delivery and physical-device verification are recorded separately in the verification notes.
+
 ## [0.12.0] - 2026-10-04
 
 ### Added

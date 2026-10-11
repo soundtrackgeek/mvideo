@@ -1,6 +1,48 @@
 import XCTest
 
 final class NavigationTests: XCTestCase {
+    @MainActor func testLiveLibraryRefreshKeepsRemoteFocus() async throws {
+        continueAfterFailure = false
+        func change(_ route: String) async throws {
+            var request = URLRequest(url: URL(string: "http://127.0.0.1:8766/_test/" + route)!)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 3
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+        }
+        do { try await change("reset") }
+        catch { throw XCTSkip("Run the isolated server/tests/tvos_sync_fixture.py fixture on localhost:8766.") }
+        let app = XCUIApplication()
+        app.launchEnvironment["MVIDEO_TEST_ORIGIN"] = "http://127.0.0.1:8766"
+        app.launchEnvironment["MVIDEO_TEST_PAIR_CODE"] = "12345678"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["60 videos in your library"].waitForExistence(timeout: 15))
+        let videos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'video-'"))
+        XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 15))
+        let remote = XCUIRemote.shared
+        for _ in 0..<12 where !videos.firstMatch.hasFocus { remote.press(.down) }
+        XCTAssertTrue(videos.firstMatch.hasFocus, app.debugDescription)
+        remote.press(.right)
+        remote.press(.right)
+        let original = app.buttons.matching(NSPredicate(format: "hasFocus == true AND identifier BEGINSWITH 'video-'" )).firstMatch
+        XCTAssertTrue(original.exists, app.debugDescription)
+        let identity = original.identifier
+        try await change("change")
+        let refresh = app.buttons["library-refresh"]
+        XCTAssertTrue(refresh.waitForExistence(timeout: 10))
+        XCTAssertEqual(refresh.label, "12 more videos · Refresh")
+        XCTAssertTrue(app.buttons[identity].hasFocus, "Incoming events must not take focus.")
+        saveScreenshot(app, name: "Library change notice preserves focus")
+        for _ in 0..<12 where !refresh.hasFocus { remote.press(.up) }
+        XCTAssertTrue(refresh.hasFocus, app.debugDescription)
+        remote.press(.select)
+        XCTAssertTrue(refresh.waitForNonExistence(timeout: 15))
+        await fulfillment(of: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasFocus == true"), object: app.buttons[identity])], timeout: 5)
+        XCTAssertTrue(app.buttons[identity].hasFocus, app.debugDescription)
+        XCTAssertTrue(app.staticTexts["72 videos in your library"].exists)
+        saveScreenshot(app, name: "Refreshed library restores the focused video")
+    }
+
     func testGoToArtistKeepsFloatingPlaybackAndRestoresFullScreen() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

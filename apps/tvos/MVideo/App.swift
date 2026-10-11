@@ -29,7 +29,7 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             Group {
-                if let api = session.api { LibraryShell(api: api, session: session) }
+                if let api = session.api { LibraryShell(api: api, session: session).id(ObjectIdentifier(api)) }
                 else { PairingView(session: session) }
             }
             .preferredColorScheme(.dark)

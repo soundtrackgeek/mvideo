@@ -1,4 +1,14 @@
-# Verification — updated 2026-10-04
+# Verification — updated 2026-10-11
+
+## 0.13.0 live Apple TV library synchronization
+
+- Source versions: server and Apple TV **0.13.0**, local app build **13**. Windows deployment and Xcode Cloud/TestFlight delivery are checked separately below.
+- **154 server tests passed** locally (33.08 seconds), including real HTTP SSE frames/headers, authentication/revocation, CLI-originated additions/replacements/removals, artwork completion ordering, bounded replay recovery and worker-queue deferral. The existing Starlette TestClient deprecation warning remains.
+- **37 native tests passed, zero failures or skips** (48.17 seconds), covering event decoding/transport/authentication, older-server fallback, monitor cancellation, targeted artwork updates, reconnect resynchronization and atomic multi-page refresh/cancellation/conflicts, plus existing audio/playback/remote behavior. The remote UI test verifies the 12-video notice leaves focus untouched and Refresh restores the same video after its grid position changes. Final result: `test_sim_2026-10-11T11-24-11-641Z_pid72918_d7c5a0eb.xcresult` in the local XcodeBuildMCP workspace.
+- The separate native remote-focus check uses only temporary generated media and catalog state (`server/tests/tvos_sync_fixture.py`, localhost:8766); it does not alter the Windows library. Run the fixture, then select `MVideoUITests/NavigationTests/testLiveLibraryRefreshKeepsRemoteFocus`. Without that fixture, the test skips.
+- Refresh retains the previous usable page until replacement pages have loaded under one revision. A surviving card keeps focus; when insertions change its grid position, scrolling anchors to that card. Unchanged positions retain the pixel scroll offset. The playback session and its queue are independent of browsing refresh.
+- Existing server/app clients remain compatible. Video-page notices on older servers use two-minute status polling; live artwork and revision-aware facet notices require server 0.13.0. Physical Apple TV behavior needs separate owner verification.
+
 
 ## Installed Windows service
 
