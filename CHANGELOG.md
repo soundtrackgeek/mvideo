@@ -11,7 +11,7 @@
 ### Changed
 
 - New video IDs are independent of paths. Planned filename repairs share the relocation update and retain IDs; older pending journals still recover, while scans protect their source/destination paths.
-- Server package version is 0.14.0. Apple TV remains 0.13.0; this feature needs only the server update and an initial content-key scan.
+- Server package and API health version are 0.14.0. Apple TV remains 0.13.0; this feature needs only the server update and an initial content-key scan.
 
 ### Fixed
 

@@ -77,7 +77,7 @@ def create_app(settings=None, *, scan_interval=1800):
             await asyncio.to_thread(ingestion.close)
             playback.close()
             metadata.close()
-    app=FastAPI(title='mvideo',version='0.13.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.14.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
@@ -123,7 +123,7 @@ def create_app(settings=None, *, scan_interval=1800):
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.13.0'}
+    def health(): return {'service':'mvideo','version':'0.14.0'}
 
     def playlist_result(value, sid):
         data = value.copy()
