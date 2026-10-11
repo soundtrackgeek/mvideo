@@ -176,7 +176,7 @@ class LoudnessScanner:
                  integrated_lufs,true_peak_dbtp,loudness_range_lu,threshold_lufs,
                  audio_stream_index,ffmpeg_version,measured_at,error)
                 SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?
-                WHERE EXISTS(SELECT 1 FROM videos WHERE id=? AND size=? AND mtime=? AND available=1)
+                WHERE EXISTS(SELECT 1 FROM videos WHERE id=? AND path=? AND size=? AND mtime=? AND available=1)
                 ON CONFLICT(video_id) DO UPDATE SET
                  source_size=excluded.source_size,source_mtime=excluded.source_mtime,
                  analysis_version=excluded.analysis_version,status=excluded.status,
@@ -187,7 +187,7 @@ class LoudnessScanner:
                 (row['id'], row['size'], row['mtime'], ANALYSIS_VERSION, measurement['status'],
                  *(measurement.get(key) for key in FIELDS), measurement.get('audio_stream_index'),
                  self.ffmpeg_version, int(time.time()), measurement.get('error'),
-                 row['id'], row['size'], row['mtime']))
+                 row['id'], row['path'], row['size'], row['mtime']))
             return cursor.rowcount == 1
 
     def status(self):

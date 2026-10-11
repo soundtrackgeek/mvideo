@@ -1,4 +1,3 @@
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -46,7 +45,7 @@ def test_preview_apply_references_overrides_measurements_and_idempotence(repair)
     rows = seed(repair, [old, 'Other - Song (2001).mp4'])
     row = rows[old]
     old_id = row['id']
-    new_id = hashlib.sha256(new.encode()).hexdigest()[:32]
+    new_id = old_id
     content = repair.path(old).read_bytes()
     with repair.database.connect() as db:
         db.execute("INSERT INTO playlists VALUES('mix','Mix','',1,0,0)")
@@ -75,7 +74,6 @@ def test_preview_apply_references_overrides_measurements_and_idempotence(repair)
         assert db.execute('SELECT id FROM overrides').fetchone()[0] == new_id
         assert db.execute('SELECT integrated_lufs FROM audio_loudness WHERE video_id=?', (new_id,)).fetchone()[0] == -20
         assert tuple(db.execute('SELECT size,mtime FROM loudness_jobs WHERE video_id=?', (new_id,)).fetchone()) == (row['size'], row['mtime'])
-        assert db.execute('SELECT 1 FROM loudness_jobs WHERE video_id=?', (old_id,)).fetchone() is None
         assert db.execute('SELECT id FROM search WHERE search MATCH ?', ('"User artist"',)).fetchone()[0] == new_id
         assert db.execute('SELECT state FROM filename_renames').fetchone()[0] == 'complete'
     assert LoudnessScanner(repair.settings, repair.database).status()['measured'] == 1
@@ -216,7 +214,7 @@ def test_background_scan_between_interruption_and_resume(repair, monkeypatch):
         repair.apply(plan)
     repair.library.scan()
     with repair.database.connect() as db:
-        assert db.execute('SELECT count(*) FROM videos').fetchone()[0] == 2
+        assert db.execute('SELECT count(*) FROM videos').fetchone()[0] == 1
     monkeypatch.setattr(repair, 'migrate', migrate)
     assert repair.apply(plan)['recovered'] == 1
     with repair.database.connect() as db:

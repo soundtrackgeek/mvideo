@@ -1,5 +1,13 @@
 # Verification — updated 2026-10-11
 
+## 0.14.0 video identity across renames and moves
+
+- Server source/package **0.14.0**; the Apple TV source remains **0.13.0**. Existing IDs are retained, new IDs are independent of paths, and planned repairs share the scan's atomic metadata/reference update. Source media remains read-only during scans.
+- **175 server tests passed locally, zero failures or skips** (34.41 seconds). The 21 new identity cases cover ordinary/folder/case-only/repeated moves, copy-and-delete mtime changes, split-scan recovery, original-path reuse, copies/duplicates, different samples/durations, partial walks, legacy-schema backfill, cancelled backfill, changing/failed reads, rollback, source reappearance and old repair journals. A real FFmpeg fixture retains its source hash/mtime and saved measurement, with subsequent analysis using its cached result.
+- The full suite also checks ingestion, SSE events, playback, playlist conflicts, filename repair recovery and the 15,000-video catalog. Only the existing Starlette TestClient deprecation warning remains. A loudness callback started from an old path is rejected after relocation so it cannot overwrite a retained result.
+- Content keys read at most 8 MiB and canonicalize duration. They are sampled-content heuristics; same-size/same-duration changes wholly within the unsampled middle remain indistinguishable. Legacy records must be fingerprinted before a manual move; already missing pre-upgrade files cannot be backfilled retrospectively. Ambiguous matches remain separate and incomplete walks defer matching moves.
+- Windows deployment and first content-key backfill will be verified separately below. No new Apple TV build is required for this server-only feature.
+
 ## 0.13.0 live Apple TV library synchronization
 
 - Source versions: server and Apple TV **0.13.0**, local app build **13**. Windows deployment and Xcode Cloud/TestFlight delivery are verified below; TestFlight build is **19**.

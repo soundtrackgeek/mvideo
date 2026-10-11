@@ -1,4 +1,4 @@
-import hashlib
+from collections import Counter, defaultdict
 import json
 import logging
 import os
@@ -6,9 +6,12 @@ import re
 import stat as stat_module
 import subprocess
 import threading
+import time
+import uuid
 from pathlib import Path
 from time import perf_counter
 from .parsing import parse_filename
+from .content import content_key, media_duration
 
 EXTENSIONS = {".mp4", ".m4v", ".mov", ".avi", ".mkv", ".mpg", ".mpeg", ".vob", ".webm", ".wmv"}
 logger = logging.getLogger(__name__)
@@ -50,15 +53,18 @@ class Library:
             self.scan_lock.release()
             return {'state':'busy', 'error':'Another scan is already running or its lock is unavailable'}
         self.scan_status = {"state": "scanning", "scanned": 0, "changed": 0, "deferred": 0,
-                            "missing": 0, "pending": 0}
+                            "missing": 0, "pending": 0, "moved": 0, "fingerprinted": 0}
         stop = stop_event if stop_event is not None else threading.Event()
         try:
             root = self.settings.library.resolve(strict=True)
             if not root.is_dir():
                 raise OSError("Library root unavailable")
             with self.database.connect() as db:
-                existing = {row["id"]: (row["size"], row["mtime"], row["available"], row["probe_error"])
-                            for row in db.execute("SELECT id,size,mtime,available,probe_error FROM videos")}
+                existing = {row['path']: dict(row) for row in db.execute(
+                    'SELECT id,path,size,mtime,available,probe,probe_error,content_key FROM videos')}
+                journals = db.execute("SELECT old_id,new_id,old_path,new_path FROM filename_renames WHERE state='pending'").fetchall()
+            protected_paths = {row[key] for row in journals for key in ('old_path', 'new_path')}
+            protected_ids = {row[key] for row in journals for key in ('old_id', 'new_id')}
             seen = set()
             walk_errors = []
             def fail(error):
@@ -92,10 +98,15 @@ class Library:
                                 walk_errors.append(type(error).__name__)
                                 continue
                             relative = path.relative_to(root).as_posix()
-                            identity = hashlib.sha256(relative.encode()).hexdigest()[:32]
-                            seen.add(identity)
+                            seen.add(relative)
                             self.scan_status["scanned"] += 1
-                            if existing.get(identity) != (stat.st_size, stat.st_mtime_ns, 1, None):
+                            if relative in protected_paths:
+                                continue  # Let the durable filename-repair journal finish first.
+                            row = existing.get(relative)
+                            identity = row['id'] if row else uuid.uuid4().hex
+                            current = row and (row['size'], row['mtime'], row['available'], row['probe_error']) == (stat.st_size, stat.st_mtime_ns, 1, None)
+                            backfill = current and row['content_key'] is None and media_duration(json.loads(row['probe'] or '{}')) is not None
+                            if not current or backfill:
                                 candidates.append((identity, relative, stat.st_size, stat.st_mtime_ns, path))
                 except OSError as error:
                     fail(error)
@@ -125,6 +136,7 @@ class Library:
                     self.scan_status["deferred"] += 1
                     self.scan_status["pending"] -= 1
             self.scan_status["state"] = "probing"
+            prepared = []
             for candidate in stable:
                 if stop.is_set():
                     self.scan_status["deferred"] += self.scan_status["pending"]
@@ -135,14 +147,80 @@ class Library:
                     self.scan_status["deferred"] += 1
                     self.scan_status["pending"] -= 1
                     continue
-                probe, error = None, None
+                row = existing.get(relative)
+                backfill = row and (row['size'], row['mtime'], row['available'], row['probe_error']) == (size, mtime, 1, None)
+                probe, error, key = None, None, None
                 try:
-                    probe = json.dumps(self.probe(path))
+                    probe_data = json.loads(row['probe'] or '{}') if backfill else self.probe(path)
+                    probe = json.dumps(probe_data)
                 except (OSError, ValueError, subprocess.TimeoutExpired):
                     error = "Unable to inspect media; retry scan after checking FFprobe and file access"
+                if error is None:
+                    try:
+                        key = content_key(path, size, probe_data)
+                    except OSError:
+                        self.scan_status['deferred'] += 1
+                        self.scan_status['pending'] -= 1
+                        continue
                 if stop.is_set() or not unchanged(candidate):
                     self.scan_status["deferred"] += 1
                     self.scan_status["pending"] -= 1
+                    continue
+                if backfill:
+                    with self.database.connect() as db:
+                        db.execute('BEGIN IMMEDIATE')
+                        if stop.is_set() or not unchanged(candidate):
+                            self.scan_status['deferred'] += 1
+                            self.scan_status['pending'] -= 1
+                            continue
+                        db.execute('UPDATE videos SET content_key=? WHERE id=? AND size=? AND mtime=?',
+                                   (key, identity, size, mtime))
+                    row['content_key'] = key
+                    self.scan_status['fingerprinted'] += 1
+                    self.scan_status['pending'] -= 1
+                else:
+                    prepared.append((candidate, probe, error, key))
+
+            # Resolve the whole batch before publishing any new paths. Multiple
+            # missing copies or incoming copies are deliberately ambiguous.
+            by_key = defaultdict(list)
+            for relative, row in existing.items():
+                if row['content_key']:
+                    by_key[row['content_key']].append(row)
+            incoming = Counter(key for _, _, _, key in prepared if key)
+
+            def source_relocated(row, target):
+                try:
+                    source = root / row['path']
+                    source_stat = source.lstat()
+                    # Windows may still resolve the old spelling after a
+                    # case-only rename. The walk saw only the new spelling.
+                    if stat_module.S_ISREG(source_stat.st_mode) and source.samefile(target):
+                        return True
+                    seen.add(row['path'])
+                    return False
+                except FileNotFoundError:
+                    return True
+                except OSError:
+                    walk_errors.append('MoveSourceUnavailable')
+                    return None
+
+            for candidate, probe, error, key in prepared:
+                identity, relative, size, mtime, path = candidate
+                if stop.is_set() or not unchanged(candidate):
+                    self.scan_status['deferred'] += 1
+                    self.scan_status['pending'] -= 1
+                    continue
+                matches = by_key.get(key, []) if relative not in existing and key else []
+                old = matches[0] if len(matches) == incoming[key] == 1 else None
+                if old and (old['path'] in seen or old['id'] in protected_ids):
+                    old = None
+                if old:
+                    if source_relocated(old, path) is False:
+                        old = None  # It reappeared after the walk; this is a copy.
+                if old and walk_errors:
+                    self.scan_status['deferred'] += 1
+                    self.scan_status['pending'] -= 1
                     continue
                 parsed = parse_filename(path.name)
                 with self.database.connect() as db:
@@ -151,25 +229,31 @@ class Library:
                         self.scan_status["deferred"] += 1
                         self.scan_status["pending"] -= 1
                         continue
-                    override = db.execute("SELECT artist,title,year FROM overrides WHERE id=?", (identity,)).fetchone()
-                    if override:
-                        parsed.update(dict(override)); parsed["warnings"] = []
-                    db.execute("""INSERT INTO videos VALUES(?,?,?,?,?,?,?,?,?,?,?,1)
-                        ON CONFLICT(id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime,artist=excluded.artist,
-                        title=excluded.title,year=excluded.year,raw_name=excluded.raw_name,warnings=excluded.warnings,
-                        probe=excluded.probe,probe_error=excluded.probe_error,available=1""",
-                        (identity, relative, size, mtime, parsed["artist"], parsed["title"], parsed["year"], parsed["raw_name"], json.dumps(parsed["warnings"]), probe, error))
-                    self._index(db, identity, parsed)
-                    db.execute("""INSERT INTO loudness_jobs(video_id,size,mtime) VALUES(?,?,?)
-                        ON CONFLICT(video_id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime""",
-                        (identity, size, mtime))
+                    if old:
+                        absent = source_relocated(old, path)
+                        if absent is None:
+                            self.scan_status['deferred'] += 1
+                            self.scan_status['pending'] -= 1
+                            continue
+                        if not absent:
+                            old = None
+                    if old:
+                        identity = old['id']
+                        self._relocate(db, old, relative, size, mtime, probe, key)
+                        seen.add(old['path'])
+                    else:
+                        self._save_candidate(db, identity, relative, size, mtime, parsed, probe, error, key)
                     db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
+                if old:
+                    self.scan_status['moved'] += 1
+                    logger.info('Video moved id=%s from=%r to=%r', identity, old['path'], relative)
                 self.scan_status["changed"] += 1
                 self.scan_status["pending"] -= 1
             if stop.is_set():
                 self.scan_status["state"] = "stopped"
                 return self.scan_status
-            missing = [] if walk_errors else [identity for identity, row in existing.items() if row[2] and identity not in seen]
+            missing = [] if walk_errors else [row['id'] for relative, row in existing.items()
+                if row['available'] and relative not in seen and row['id'] not in protected_ids]
             if missing:
                 with self.database.connect() as db:
                     for identity in missing:
@@ -186,6 +270,43 @@ class Library:
             lock_file.close()
             self.scan_lock.release()
         return self.scan_status
+
+    def _save_candidate(self, db, identity, relative, size, mtime, parsed, probe, error, key):
+        override = db.execute("SELECT artist,title,year FROM overrides WHERE id=?", (identity,)).fetchone()
+        if override:
+            parsed.update(dict(override)); parsed["warnings"] = []
+        db.execute("""INSERT INTO videos(id,path,size,mtime,artist,title,year,raw_name,warnings,probe,probe_error,available,content_key)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?)
+            ON CONFLICT(id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime,artist=excluded.artist,
+            title=excluded.title,year=excluded.year,raw_name=excluded.raw_name,warnings=excluded.warnings,
+            probe=excluded.probe,probe_error=excluded.probe_error,available=1,content_key=excluded.content_key""",
+            (identity, relative, size, mtime, parsed["artist"], parsed["title"], parsed["year"], parsed["raw_name"], json.dumps(parsed["warnings"]), probe, error, key))
+        self._index(db, identity, parsed)
+        db.execute("""INSERT INTO loudness_jobs(video_id,size,mtime) VALUES(?,?,?)
+            ON CONFLICT(video_id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime""",
+            (identity, size, mtime))
+
+    @staticmethod
+    def _relocate(db, old, relative, size, mtime, probe, key, error=None):
+        """Shared atomic path/metadata update for scans and planned repairs."""
+        identity = old['id']
+        parsed = parse_filename(Path(relative).name)
+        override = db.execute('SELECT artist,title,year FROM overrides WHERE id=?', (identity,)).fetchone()
+        if override:
+            parsed.update(dict(override)); parsed['warnings'] = []
+        db.execute('''UPDATE videos SET path=?,size=?,mtime=?,artist=?,title=?,year=?,raw_name=?,warnings=?,
+            probe=?,probe_error=?,available=1,content_key=? WHERE id=?''',
+            (relative, size, mtime, parsed['artist'], parsed['title'], parsed['year'], parsed['raw_name'],
+             json.dumps(parsed['warnings']), probe, error, key, identity))
+        # A copy-and-delete move can change mtime. Only previously current
+        # measurements may adopt the new stamp; stale ones must stay stale.
+        db.execute('''UPDATE audio_loudness SET source_size=?,source_mtime=?
+            WHERE video_id=? AND source_size=? AND source_mtime=?''',
+            (size, mtime, identity, old['size'], old['mtime']))
+        db.execute('UPDATE loudness_jobs SET size=?,mtime=? WHERE video_id=?', (size, mtime, identity))
+        db.execute('''UPDATE playlists SET version=version+1,updated_at=? WHERE id IN
+            (SELECT playlist_id FROM playlist_items WHERE video_id=?)''', (int(time.time()), identity))
+        Library._index(db, identity, parsed)
 
     @staticmethod
     def _index(db, identity, data):

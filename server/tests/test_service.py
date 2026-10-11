@@ -238,7 +238,7 @@ def test_pagination_15000(service):
     with app.state.database.connect() as db:
         for n in range(15000):
             data={'artist':f'Artist {n%300}','title':f'Song {n:05d}','year':1950+n%76}
-            db.execute('INSERT INTO videos VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(str(n),str(n)+'.mp4',1,1,data['artist'],data['title'],data['year'],str(n),'[]',json.dumps(PROBE),None,1))
+            db.execute('INSERT INTO videos(id,path,size,mtime,artist,title,year,raw_name,warnings,probe,probe_error,available) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',(str(n),str(n)+'.mp4',1,1,data['artist'],data['title'],data['year'],str(n),'[]',json.dumps(PROBE),None,1))
             app.state.library._index(db,str(n),data)
     seen=[]
     for offset in range(0,15000,100):

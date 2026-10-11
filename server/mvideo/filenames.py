@@ -1,6 +1,5 @@
 """Apply an explicit filename repair plan and migrate dependent catalog records."""
 
-import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -152,7 +151,6 @@ class FilenameRepair:
         return path
 
     def migrate(self, journal):
-        parsed = parse_filename(Path(journal['new_path']).name)
         old_id, new_id = journal['old_id'], journal['new_id']
         with self.database.connect() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -162,7 +160,8 @@ class FilenameRepair:
                     journal['old_path'], journal['source_size'], journal['source_mtime']):
                 raise ValueError('Catalog changed during repair; keep the journal and database backup')
             if journal['action'] == 'rename':
-                destination = db.execute('SELECT * FROM videos WHERE id=? OR path=?', (new_id, journal['new_path'])).fetchone()
+                destination = db.execute('SELECT * FROM videos WHERE (id=? OR path=?) AND id!=?',
+                                         (new_id, journal['new_path'], old_id)).fetchone()
                 if destination:
                     # An automatic scan may have seen a completed filesystem rename after
                     # an interruption. Discard only its unreferenced, matching duplicate row.
@@ -175,34 +174,28 @@ class FilenameRepair:
                         raise ValueError('Destination was cataloged separately with changed data or references; repair requires reconciliation')
                     db.execute('DELETE FROM search WHERE id=?', (new_id,))
                     db.execute('DELETE FROM videos WHERE id=?', (new_id,))
-            # Version bumps ensure an open playlist editor cannot save stale IDs over this change.
-            db.execute('''UPDATE playlists SET version=version+1,updated_at=? WHERE id IN
-                (SELECT playlist_id FROM playlist_items WHERE video_id=?)''', (int(time.time()), old_id))
             if journal['action'] == 'hold':
+                db.execute('''UPDATE playlists SET version=version+1,updated_at=? WHERE id IN
+                    (SELECT playlist_id FROM playlist_items WHERE video_id=?)''', (int(time.time()), old_id))
                 # Keep its original ID and all references so returning the file and scanning restores it.
                 db.execute('UPDATE videos SET available=0 WHERE id=?', (old_id,))
                 db.execute('DELETE FROM search WHERE id=?', (old_id,))
                 db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
                 db.execute("UPDATE filename_renames SET state='complete' WHERE id=?", (journal['id'],))
                 return
-            db.execute('''UPDATE videos SET id=?,path=?,artist=?,title=?,year=?,raw_name=?,warnings=?,available=1
-                WHERE id=?''', (new_id, journal['new_path'], parsed['artist'], parsed['title'], parsed['year'],
-                               parsed['raw_name'], json.dumps(parsed['warnings']), old_id))
-            db.execute('UPDATE playlist_items SET video_id=? WHERE video_id=?', (new_id, old_id))
-            db.execute('UPDATE audio_loudness SET video_id=? WHERE video_id=?', (new_id, old_id))
-            db.execute('''INSERT INTO loudness_jobs(video_id,size,mtime)
-                SELECT ?,size,mtime FROM loudness_jobs WHERE video_id=?
-                ON CONFLICT(video_id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime''', (new_id, old_id))
-            db.execute('DELETE FROM loudness_jobs WHERE video_id=?', (old_id,))
-            db.execute('UPDATE overrides SET id=? WHERE id=?', (new_id, old_id))
-            override = db.execute('SELECT artist,title,year FROM overrides WHERE id=?', (new_id,)).fetchone()
-            if override:
-                # Existing explicit user metadata keeps its priority over filename parsing.
-                parsed.update(dict(override))
-                db.execute('UPDATE videos SET artist=?,title=?,year=?,warnings=? WHERE id=?',
-                           (parsed['artist'], parsed['title'], parsed['year'], '[]', new_id))
-            db.execute('DELETE FROM search WHERE id=?', (old_id,))
-            Library._index(db, new_id, parsed)
+            if old_id != new_id:
+                # Recover journals written by older releases with path-derived IDs.
+                db.execute('UPDATE videos SET id=? WHERE id=?', (new_id, old_id))
+                db.execute('UPDATE playlist_items SET video_id=? WHERE video_id=?', (new_id, old_id))
+                db.execute('UPDATE audio_loudness SET video_id=? WHERE video_id=?', (new_id, old_id))
+                db.execute('''INSERT INTO loudness_jobs(video_id,size,mtime)
+                    SELECT ?,size,mtime FROM loudness_jobs WHERE video_id=?
+                    ON CONFLICT(video_id) DO UPDATE SET size=excluded.size,mtime=excluded.mtime''', (new_id, old_id))
+                db.execute('DELETE FROM loudness_jobs WHERE video_id=?', (old_id,))
+                db.execute('UPDATE overrides SET id=? WHERE id=?', (new_id, old_id))
+                db.execute('DELETE FROM search WHERE id=?', (old_id,))
+            Library._relocate(db, dict(old, id=new_id), journal['new_path'], old['size'], old['mtime'],
+                              old['probe'], old['content_key'], old['probe_error'])
             db.execute("UPDATE meta SET value=value+1 WHERE key='revision'")
             db.execute("UPDATE filename_renames SET state='complete' WHERE id=?", (journal['id'],))
 
@@ -254,7 +247,7 @@ class FilenameRepair:
                     continue
                 with self.database.connect() as db:
                     row = dict(db.execute('SELECT * FROM videos WHERE path=?', (item['old_path'],)).fetchone())
-                    new_id = hashlib.sha256(item['new_path'].encode()).hexdigest()[:32] if item['action'] == 'rename' else row['id']
+                    new_id = row['id']
                     cursor = db.execute('''INSERT INTO filename_renames
                         (old_id,new_id,old_path,new_path,source_size,source_mtime,original_row,state,action,created_at)
                         VALUES(?,?,?,?,?,?,?,'pending',?,?)''',

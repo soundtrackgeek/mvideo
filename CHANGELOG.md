@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.0] - 2026-10-11
+
+### Added
+
+- Automatic rename/move recognition from a unique content key using file size, duration and SHA-256 samples of the first/last 4 MiB. Existing video IDs, playlists, overrides and current loudness measurements survive, including copy-and-delete moves, case-only renames and moves spanning separate scans.
+- Resumable content-key backfill for unchanged catalog files using saved probe data, without new audio analysis or catalog revision changes. Move logs and `moved`/`fingerprinted` scan counters expose progress.
+- Regression coverage for duplicate ambiguity, partial walks, sample failures/changes, atomic rollback, catalog upgrades, pending repair journals, measurement races and real FFmpeg source/measurement preservation.
+
+### Changed
+
+- New video IDs are independent of paths. Planned filename repairs share the relocation update and retain IDs; older pending journals still recover, while scans protect their source/destination paths.
+- Server package version is 0.14.0. Apple TV remains 0.13.0; this feature needs only the server update and an initial content-key scan.
+
+### Fixed
+
+- Reject loudness callbacks started from a path that moved during analysis, preventing stale failures from overwriting retained measurements.
+
 ## [0.13.0] - 2026-10-11
 
 ### Added

@@ -47,7 +47,7 @@ def test_unchanged_scan_uses_one_snapshot_connection(library, monkeypatch):
     result = library.scan()
     assert result['scanned'] == 100 and result['changed'] == result['deferred'] == 0
     assert len(connections) == 1
-    assert sum('SELECT id,size,mtime,available,probe_error FROM videos' in sql for sql in statements) == 1
+    assert sum('SELECT id,path,size,mtime,available,probe,probe_error,content_key FROM videos' in sql for sql in statements) == 1
     assert not any('overrides' in sql for sql in statements)
     assert not any(sql.startswith(('INSERT', 'UPDATE', 'DELETE', 'BEGIN')) for sql in statements)
 

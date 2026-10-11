@@ -62,6 +62,11 @@ class Database:
         with self.connect() as db:
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
+            # Existing IDs and dependent records stay intact during the upgrade.
+            db.execute('BEGIN IMMEDIATE')
+            if 'content_key' not in {row['name'] for row in db.execute('PRAGMA table_info(videos)')}:
+                db.execute('ALTER TABLE videos ADD COLUMN content_key TEXT')
+            db.execute('CREATE INDEX IF NOT EXISTS videos_content_key ON videos(content_key) WHERE content_key IS NOT NULL')
 
     @contextmanager
     def connect(self):

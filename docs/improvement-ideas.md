@@ -1,6 +1,6 @@
 # mvideo: improvement and feature ideas
 
-Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is implemented and deployed as **server 0.12.0**. Improvement 2 is implemented in **server and Apple TV 0.13.0**, reviewed on 2026-10-11; the remaining entries are proposals. Deployment/delivery evidence is in the [verification notes](implementation/VERIFICATION.md). The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
+Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is implemented and deployed as **server 0.12.0**. Improvement 2 is implemented in **server and Apple TV 0.13.0**; improvement 3 is implemented in **server 0.14.0**, reviewed on 2026-10-11. The remaining entries are proposals. Deployment/delivery evidence is in the [verification notes](implementation/VERIFICATION.md). The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
 
 **Effort:** **S** ≈ a day · **M** ≈ several days · **L** ≈ a week or more. **Impact** is a judgement of how much the change affects day-to-day use of the library.
 
@@ -47,7 +47,16 @@ See the [operating procedure](../README.md#adding-replacing-or-renaming-music-vi
 
 ### 3. Video identity that survives renames and moves
 
-**Today:** A video's ID is `sha256(relative path)` ([library.py:83](../server/mvideo/library.py#L83)). Renaming or moving a file outside the `fix-filenames` tool creates a new video and orphans its playlist entries, loudness measurement and overrides. The README spends a whole section on JSON rename plans to work around this.
+**Implemented in server 0.14.0 (2026-10-11):**
+
+- A versioned size/duration/first-and-last-4-MiB content key identifies unique moves during complete scans. The original video ID stays intact, with filename metadata/search refreshed, overrides retained and current measurements preserved even when a copy-and-delete move changes mtime.
+- IDs for new videos are independent of paths. Duplicate copies and ambiguous matches stay separate. Missing records can match on a later scan; Windows case-only renames are supported.
+- Existing keys backfill incrementally using saved probes, without loudness jobs or revision changes. Wait for the initial scan before manually renaming legacy files. Missing pre-upgrade keys cannot recover earlier moves retrospectively; sampled keys are a heuristic, not a full-file fingerprint.
+- Planned bulk repairs retain IDs and share the atomic relocation update. Scans protect pending repair journals, including older journals that still migrate IDs when recovered. Chromaprint remains optional future work.
+
+See the [operating procedure](../README.md#rename-or-move-an-already-indexed-video) and [verification evidence](implementation/VERIFICATION.md).
+
+**Original problem:** A video's ID was `sha256(relative path)`. Renaming or moving a file outside the `fix-filenames` tool created a new video and orphaned its playlist entries, loudness measurement and overrides. JSON rename plans were needed to work around this.
 
 **Improve by:**
 - Store a content key next to the path: size plus duration plus a hash of the first and last 4 MB. This is cheap to compute even over SMB.
