@@ -12,6 +12,7 @@
 
 - New video IDs are independent of paths. Planned filename repairs share the relocation update and retain IDs; older pending journals still recover, while scans protect their source/destination paths.
 - Server package and API health version are 0.14.0. Apple TV remains 0.13.0; this feature needs only the server update and an initial content-key scan.
+- Deployed to Windows after an integrity-checked SQLite backup. All 175 tests pass locally and against the installed Windows wheel. Loopback/private HTTPS Home and full Shuffle pass, with original records and revision retained. The initial content-key backfill is progressing in the background; completion remains pending.
 
 ### Fixed
 
