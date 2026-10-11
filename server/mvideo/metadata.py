@@ -1,5 +1,7 @@
 """Lazy, cached server-only providers with recording-backed artist matching."""
 import html
+import hashlib
+import io
 import json
 import os
 import re
@@ -9,8 +11,10 @@ import time
 import uuid
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from urllib.parse import urlparse
 import httpx
+from PIL import Image, ImageOps
 from .artist_match import match_artist
 
 
@@ -24,7 +28,8 @@ class Metadata:
         self.pending = set()
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mvideo-artwork')
         self.image_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='mvideo-artwork-image')
-        self.image_lock = threading.Lock()
+        self.image_locks_guard = threading.Lock()
+        self.image_locks = {}
         self.on_ready = lambda name: None
 
     def close(self):
@@ -188,12 +193,12 @@ class Metadata:
 
     def cached_artwork(self, names):
         # Grid responses stay cheap. Visible tiles request lazy matching separately.
-        if not names: return set()
+        if not names: return {}
         with self.db.connect() as db:
             rows=db.execute(f'''SELECT m.artist, m.data, i.mbid FROM metadata m
                 LEFT JOIN identities i ON i.artist=m.artist COLLATE NOCASE
                 WHERE m.artist COLLATE NOCASE IN ({','.join('?' for _ in names)})''', names).fetchall()
-        return {row['artist'].casefold() for row in rows
+        return {row['artist'].casefold(): self.image_version(data['images'][0]) for row in rows
                 if (data := json.loads(row['data'])).get('images') and
                 ((row['mbid'] and data.get('mbid') == row['mbid']) or
                  (not row['mbid'] and data.get('identity_source') == 'musicbrainz_recording' and data.get('mbid')))}
@@ -213,30 +218,85 @@ class Metadata:
                 candidates.append((row['artist'],data))
         if not candidates: return None
         name,data=random.choice(candidates)
-        return {'artist':name,'index':random.randrange(data['background_count']),
+        index=random.randrange(data['background_count'])
+        return {'artist':name,'index':index,
+                'version': self.image_version(data['images'][index]),
                 'attribution':'Artist photography · fanart.tv','source_url':data['image_source_url']}
 
-    def image(self, name, index):
-        import hashlib
+    @staticmethod
+    def image_version(url):
+        return hashlib.sha256(url.encode()).hexdigest()
+
+    @contextmanager
+    def image_lock(self, key):
+        # Coalesce requests for one original/its renditions, while other
+        # originals can use both image workers. Retire unused lock entries.
+        with self.image_locks_guard:
+            lock, users = self.image_locks.get(key, (threading.Lock(), 0))
+            self.image_locks[key] = (lock, users+1)
+        try:
+            with lock:
+                yield
+        finally:
+            with self.image_locks_guard:
+                _, users = self.image_locks[key]
+                if users == 1: del self.image_locks[key]
+                else: self.image_locks[key] = (lock, users-1)
+
+    def image(self, name, index, width=None, version=None):
+        if index < 0 or width not in (None, 640, 1280, 1920):
+            raise FileNotFoundError('Artist image unavailable')
         data, _, _ = self.cached(name)
         if not data or not data.get('images'): data=self.artist(name)
         try:
             url=data['images'][index]
         except IndexError:
             raise FileNotFoundError('Artist image unavailable')
-        target=self.settings.state/'artwork'/(hashlib.sha256(url.encode()).hexdigest()+'.jpg')
-        if not target.exists():
-            with self.image_lock, httpx.Client(timeout=20,follow_redirects=False) as client:
-                with client.stream('GET',url) as response:
-                    response.raise_for_status()
-                    if not response.headers.get('content-type','').startswith('image/'):
-                        raise FileNotFoundError('Invalid artwork response')
-                    chunks=[]; size=0
-                    for chunk in response.iter_bytes():
-                        size+=len(chunk)
-                        if size>10*1024**2:
-                            raise FileNotFoundError('Artwork too large')
-                        chunks.append(chunk)
-                temp=target.with_suffix('.partial')
-                temp.write_bytes(b''.join(chunks)); temp.replace(target)
+        key = self.image_version(url)
+        if version is not None and version != key:
+            raise FileNotFoundError('Artist image changed; refresh this page')
+        original=self.settings.state/'artwork'/(key+'.jpg')
+        target=original if width is None else original.with_name(f'{key}-w{width}-v1.jpg')
+        if target.exists(): return target
+        with self.image_lock(key):
+            if target.exists(): return target
+            if not original.exists():
+                with httpx.Client(timeout=20,follow_redirects=False) as client:
+                    with client.stream('GET',url) as response:
+                        response.raise_for_status()
+                        if not response.headers.get('content-type','').startswith('image/'):
+                            raise FileNotFoundError('Invalid artwork response')
+                        chunks=[]; size=0
+                        for chunk in response.iter_bytes():
+                            size+=len(chunk)
+                            if size>10*1024**2:
+                                raise FileNotFoundError('Artwork too large')
+                            chunks.append(chunk)
+                content=b''.join(chunks)
+                # Reject malformed/oversized rasters before publishing a cache file.
+                with Image.open(io.BytesIO(content)) as image:
+                    if image.width*image.height > 16_000_000:
+                        raise FileNotFoundError('Artwork dimensions too large')
+                    image.verify()
+                self.write_image(original, content)
+            if width is not None:
+                with Image.open(original) as source:
+                    if source.width*source.height > 16_000_000:
+                        raise FileNotFoundError('Artwork dimensions too large')
+                    image=ImageOps.exif_transpose(source).convert('RGB')
+                    # Preserve aspect ratio and never enlarge a small provider image.
+                    if image.width > width:
+                        image.thumbnail((width, max(1, round(image.height*width/image.width))), Image.Resampling.LANCZOS)
+                    content=io.BytesIO()
+                    image.save(content, format='JPEG', quality=85, optimize=True)
+                self.write_image(target, content.getvalue())
         return target
+
+    @staticmethod
+    def write_image(target, content):
+        temp=target.with_suffix('.partial')
+        try:
+            temp.write_bytes(content)
+            temp.replace(target)
+        finally:
+            temp.unlink(missing_ok=True)

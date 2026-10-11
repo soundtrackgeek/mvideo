@@ -21,6 +21,7 @@ import SwiftUI
             do { let _: Revoked = try await api.request("/api/session", method: "DELETE") }
             catch { connectionError = "Local session removed. Server revocation was unavailable; revoke it on the PC if needed." }
         }
+        ArtworkLoader.pipeline.cache.removeAll()
         KeychainStore().clear(); api = nil
     }
 }

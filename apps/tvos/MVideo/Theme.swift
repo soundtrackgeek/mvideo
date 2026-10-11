@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 enum Theme {
     static let background = Color(red: 0.035, green: 0.043, blue: 0.047)
@@ -41,14 +42,22 @@ struct CardStyle: ButtonStyle {
 struct Artwork: View {
     let url: URL?
     var fallbackURL: URL? = nil
+    @Environment(\.displayScale) private var displayScale
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if phase.error != nil, let fallbackURL {
-                AsyncImage(url: fallbackURL) { fallback in content(fallback) }
-            } else { content(phase) }
+        GeometryReader { geometry in
+            LazyImage(request: ArtworkLoader.request(url: url, size: geometry.size, scale: displayScale)) { state in
+                if state.error != nil, let fallbackURL {
+                    LazyImage(request: ArtworkLoader.request(url: fallbackURL, size: geometry.size, scale: displayScale)) { fallback in content(fallback) }
+                        .pipeline(ArtworkLoader.pipeline)
+                } else { content(state) }
+            }
+            .pipeline(ArtworkLoader.pipeline)
+            // LazyImage's identity also needs to reflect its decoding dimensions.
+            .id("\(url?.absoluteString ?? ""):\(Int(ceil(geometry.size.width * displayScale / 16))):\(Int(ceil(geometry.size.height * displayScale / 16)))")
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }.clipped().accessibilityHidden(true)
     }
-    @ViewBuilder private func content(_ phase: AsyncImagePhase) -> some View {
+    @ViewBuilder private func content(_ phase: LazyImageState) -> some View {
             if let image = phase.image { image.resizable().scaledToFill() }
             else {
                 ZStack {

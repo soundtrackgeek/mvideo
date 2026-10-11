@@ -9,12 +9,14 @@
 /* Begin PBXBuildFile section */
 		0E0EB2211E0BE3A011C9960E /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5A7BBCD7CFF9531C525A4C /* Connection.swift */; };
 		1278F86BCC59DE7210478680 /* PlaybackIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */; };
+		19C6ECCB5F71B3A5EF1B6196 /* ImageLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30A639BFA170EA00C9DD633 /* ImageLoadingTests.swift */; };
 		20155B3938A886525AA014A6 /* ArtistPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5F8B0066619A28A889AC49 /* ArtistPhotoViewer.swift */; };
 		32DEE1DC848B5C99220A0BD1 /* LibrarySync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E3817C326BFAF985F39D1B /* LibrarySync.swift */; };
 		3440900D28984D49A37743E1 /* Normalization.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 41CC3B52BE044B403A4DE696 /* Normalization.mp4 */; };
 		49974BC2BAC1E0C89CFE6BC4 /* PlaybackSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7030808F0CD634B427B2003D /* PlaybackSessionTests.swift */; };
 		6AACD868B7D52033AE4F1978 /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889C723F179117C90E0644F6 /* CoreTests.swift */; };
 		700A6BB9C776F8A7C1F07869 /* LibraryRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9FD28B602F9489ED7A35FA /* LibraryRecoveryTests.swift */; };
+		75C9CBE85032B9FBA498ED1F /* ImageLoading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 235CF6485D9A146FB922BBC5 /* ImageLoading.swift */; };
 		794547E32EC9E992F212EF67 /* Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53A6B2D9ED32E58A039193F /* Playback.swift */; };
 		9973E7A9ACC2517E003A819F /* AudioNormalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C986A24471154D595A2E517 /* AudioNormalization.swift */; };
 		9FAFCDCCF31E5C34E7616CE1 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E38E4A171993E547E576D7 /* Theme.swift */; };
@@ -23,8 +25,10 @@
 		AAE7417E0C251FE2A5854DD7 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABFB457B76F121670806A62 /* Models.swift */; };
 		AEB2EAAC531D6F7DC25A8212 /* FacetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE8B5EF9896A0049C5217F32 /* FacetCard.swift */; };
 		AED9DC9F9E8EC7B9D3ABAC10 /* Browse.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B95EFCC1B2CC95494863F2 /* Browse.swift */; };
+		BE0153442210D0F86A028069 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = D1175EC3AD84B12684E306A8 /* Nuke */; };
 		C00AAEE77A8280100CA45201 /* NavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66C17C42E9315C8D6DBF4A09 /* NavigationTests.swift */; };
 		D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */; };
+		F3E30FE03176AA564B6A9957 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 1AAF6EDAA2BB2E901EDC2B7C /* NukeUI */; };
 		F65C2BCBD16D6BF9C050E937 /* RemoteNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F7D098BF30793360E370A81 /* RemoteNavigationTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -47,6 +51,7 @@
 
 /* Begin PBXFileReference section */
 		0C9FD28B602F9489ED7A35FA /* LibraryRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryRecoveryTests.swift; sourceTree = "<group>"; };
+		235CF6485D9A146FB922BBC5 /* ImageLoading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoading.swift; sourceTree = "<group>"; };
 		23AD98A9839C7656AF5FD665 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		41CC3B52BE044B403A4DE696 /* Normalization.mp4 */ = {isa = PBXFileReference; path = Normalization.mp4; sourceTree = "<group>"; };
 		42AE0772F8E2A47AA58C9D39 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
@@ -68,14 +73,28 @@
 		CF5F8B0066619A28A889AC49 /* ArtistPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistPhotoViewer.swift; sourceTree = "<group>"; };
 		DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackIntegrationTests.swift; sourceTree = "<group>"; };
 		EE8B5EF9896A0049C5217F32 /* FacetCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FacetCard.swift; sourceTree = "<group>"; };
+		F30A639BFA170EA00C9DD633 /* ImageLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoadingTests.swift; sourceTree = "<group>"; };
 		F53A6B2D9ED32E58A039193F /* Playback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Playback.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E6BBCFAAE8D2FBEEB819A399 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE0153442210D0F86A028069 /* Nuke in Frameworks */,
+				F3E30FE03176AA564B6A9957 /* NukeUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		7BF29ED3170D9643E34D613B /* MVideoTests */ = {
 			isa = PBXGroup;
 			children = (
 				889C723F179117C90E0644F6 /* CoreTests.swift */,
+				F30A639BFA170EA00C9DD633 /* ImageLoadingTests.swift */,
 				0C9FD28B602F9489ED7A35FA /* LibraryRecoveryTests.swift */,
 				A23F83EBB9BEF36A227A1B75 /* NormalizationTests.swift */,
 				DC3032591F76333418494D04 /* PlaybackIntegrationTests.swift */,
@@ -132,6 +151,7 @@
 				A9B95EFCC1B2CC95494863F2 /* Browse.swift */,
 				5F5A7BBCD7CFF9531C525A4C /* Connection.swift */,
 				EE8B5EF9896A0049C5217F32 /* FacetCard.swift */,
+				235CF6485D9A146FB922BBC5 /* ImageLoading.swift */,
 				23AD98A9839C7656AF5FD665 /* Info.plist */,
 				67E3817C326BFAF985F39D1B /* LibrarySync.swift */,
 				9ABFB457B76F121670806A62 /* Models.swift */,
@@ -150,6 +170,7 @@
 			buildPhases = (
 				9F4FF0D32DC7C7F7F834B208 /* Sources */,
 				51118F6C3D0F31D3636C749D /* Resources */,
+				E6BBCFAAE8D2FBEEB819A399 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -157,6 +178,8 @@
 			);
 			name = MVideo;
 			packageProductDependencies = (
+				D1175EC3AD84B12684E306A8 /* Nuke */,
+				1AAF6EDAA2BB2E901EDC2B7C /* NukeUI */,
 			);
 			productName = MVideo;
 			productReference = 72A7A3FDA1AA5B6E11939CC2 /* MVideo.app */;
@@ -232,6 +255,9 @@
 			);
 			mainGroup = A9E1D7B8FABA838A3BDD1AF4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8E4A1CCC20D7DD4EE1E96EEE /* XCRemoteSwiftPackageReference "Nuke" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9C58619420E51754792E597F /* Products */;
 			projectDirPath = "";
@@ -282,6 +308,7 @@
 				AED9DC9F9E8EC7B9D3ABAC10 /* Browse.swift in Sources */,
 				0E0EB2211E0BE3A011C9960E /* Connection.swift in Sources */,
 				AEB2EAAC531D6F7DC25A8212 /* FacetCard.swift in Sources */,
+				75C9CBE85032B9FBA498ED1F /* ImageLoading.swift in Sources */,
 				32DEE1DC848B5C99220A0BD1 /* LibrarySync.swift in Sources */,
 				AAE7417E0C251FE2A5854DD7 /* Models.swift in Sources */,
 				794547E32EC9E992F212EF67 /* Playback.swift in Sources */,
@@ -294,6 +321,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6AACD868B7D52033AE4F1978 /* CoreTests.swift in Sources */,
+				19C6ECCB5F71B3A5EF1B6196 /* ImageLoadingTests.swift in Sources */,
 				700A6BB9C776F8A7C1F07869 /* LibraryRecoveryTests.swift in Sources */,
 				D3DF658859E3375D6ED61894 /* NormalizationTests.swift in Sources */,
 				1278F86BCC59DE7210478680 /* PlaybackIntegrationTests.swift in Sources */,
@@ -391,7 +419,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -411,7 +439,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.13.0;
+				MARKETING_VERSION = 0.15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -460,7 +488,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3L5769JKCM;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -474,7 +502,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MARKETING_VERSION = 0.13.0;
+				MARKETING_VERSION = 0.15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -598,6 +626,30 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8E4A1CCC20D7DD4EE1E96EEE /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = exactVersion;
+				version = 13.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1AAF6EDAA2BB2E901EDC2B7C /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8E4A1CCC20D7DD4EE1E96EEE /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		D1175EC3AD84B12684E306A8 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8E4A1CCC20D7DD4EE1E96EEE /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 42A279F1CBD7BEE5CF69B6FD /* Project object */;
 }

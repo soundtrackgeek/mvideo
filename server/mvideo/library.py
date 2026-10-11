@@ -1,5 +1,6 @@
 from collections import Counter, defaultdict
 import json
+import hashlib
 import logging
 import os
 import re
@@ -401,8 +402,12 @@ class Library:
         return path
 
     @staticmethod
+    def image_version(row):
+        return hashlib.sha256(f"{row['id']}:{row['mtime']}:{row['size']}".encode()).hexdigest()
+
+    @staticmethod
     def public(row):
-        return {k: row[k] for k in ("id", "artist", "title", "year")} | {"warnings": json.loads(row["warnings"]), "probe_error": row["probe_error"]}
+        return {k: row[k] for k in ("id", "artist", "title", "year")} | {"warnings": json.loads(row["warnings"]), "probe_error": row["probe_error"], "thumbnail_version": Library.image_version(row)}
 
     def facets(self, kind, q="", limit=60, offset=0):
         expression = {"artists": "artist COLLATE NOCASE", "years": "year", "decades": "(year/10)*10"}[kind]
@@ -414,4 +419,7 @@ class Library:
             total = db.execute(f"SELECT count(DISTINCT {expression}) FROM videos WHERE {where}", params).fetchone()[0]
             # Stable artwork from this exact scope, preferring a source with a successful probe.
             rows = db.execute(f"SELECT {expression} AS name, count(*) AS count, COALESCE(MIN(CASE WHEN probe_error IS NULL THEN id END), MIN(id)) AS representative_id FROM videos WHERE {where} GROUP BY {expression} ORDER BY name COLLATE NOCASE LIMIT ? OFFSET ?", [*params,limit,offset]).fetchall()
-        return {"items": [dict(r) for r in rows], "total": total, "next_offset": offset+limit if offset+limit<total else None, "revision": revision}
+            ids = [row['representative_id'] for row in rows]
+            versions = {row['id']: self.image_version(row) for row in db.execute(
+                f"SELECT id,mtime,size FROM videos WHERE id IN ({','.join('?' for _ in ids)})", ids)} if ids else {}
+        return {"items": [dict(r) | {'thumbnail_version': versions[r['representative_id']]} for r in rows], "total": total, "next_offset": offset+limit if offset+limit<total else None, "revision": revision}

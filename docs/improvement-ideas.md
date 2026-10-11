@@ -1,6 +1,6 @@
 # mvideo: improvement and feature ideas
 
-Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is implemented and deployed as **server 0.12.0**. Improvement 2 is implemented in **server and Apple TV 0.13.0**; improvement 3 is implemented in **server 0.14.0**, reviewed on 2026-10-11. The remaining entries are proposals. Deployment/delivery evidence is in the [verification notes](implementation/VERIFICATION.md). The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
+Reviewed on 2026-10-04 against **server 0.11.2**, **Apple TV app 0.11.1 (12)** and **Playlist studio 0.5.0**. Improvement 1 is implemented and deployed as **server 0.12.0**. Improvement 2 is implemented in **server and Apple TV 0.13.0**; improvement 3 is implemented in **server 0.14.0**, reviewed on 2026-10-11. Improvement 7 is implemented in server and Apple TV **0.15.0**, reviewed on 2026-10-11. The remaining entries are proposals. Deployment/delivery evidence is in the [verification notes](implementation/VERIFICATION.md). The original planning figures below came from the README and [verification notes](implementation/VERIFICATION.md): 15,558 available videos, 513 needing a video transcode, 41 needing an audio transcode, 114 filename warnings, 28 unknown years and 17 failed loudness analyses. The 0.12.0 deployment verified 15,981 available videos, one unknown year and 17 loudness errors; format and filename-warning totals have not been re-audited.
 
 **Effort:** **S** ≈ a day · **M** ≈ several days · **L** ≈ a week or more. **Impact** is a judgement of how much the change affects day-to-day use of the library.
 
@@ -105,7 +105,16 @@ See the [operating procedure](../README.md#rename-or-move-an-already-indexed-vid
 
 ### 7. Image loading and caching
 
-**Today:**
+**Implemented in server and Apple TV 0.15.0 (2026-10-11):**
+
+- Stable four-hour image-ticket buckets retain four to eight hours of validity; media tickets keep their original four-hour lifetime. Video size/mtime and provider-photo versions invalidate cached content after replacement. Session/resource/restart scoping and revocation remain enforced by the server.
+- Nuke/NukeUI 13.2.0 replaces `AsyncImage`, with a 64 MiB decoded-image cache, 256 MiB disk cache, ImageIO downsampling using the view's display scale, request priorities, coalescing and cancellation. Caches retain complete signed URLs and clear on disconnect.
+- When the last six grid cards appear, the next page's images prefetch to disk at low priority with two concurrent requests. Leaving the page cancels prefetch; **Load more** still controls pagination.
+- Pillow 12.3.0 produces lazy 640/1280/1920-pixel renditions, reusing originals and preserving aspect ratio without upscaling. Per-original locks coalesce concurrent size requests while letting unrelated downloads run together; matching providers retain their existing rate limits.
+
+See the [image-loading behavior](../README.md) and [verification/delivery evidence](implementation/VERIFICATION.md). Physical Apple TV performance needs separate owner verification.
+
+**Original problem:**
 - Every catalog response signs fresh image URLs whose ticket includes `now + 4h` ([auth.py:47](../server/mvideo/auth.py#L47)). The same thumbnail therefore gets a new URL on every load, and neither the client's URL cache nor `Cache-Control: max-age=3600` ever gets a hit.
 - The app uses `AsyncImage`, which has only the small shared URL cache and decodes full-size images. fanart.tv backgrounds are full HD but shown as 270-point tiles.
 - Artist image downloads are serialized behind one lock ([metadata.py:223](../server/mvideo/metadata.py#L223)).

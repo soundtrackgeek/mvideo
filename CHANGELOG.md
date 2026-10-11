@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.15.0] - 2026-10-11
+
+### Added
+
+- Shared Nuke/NukeUI 13.2.0 image pipeline on Apple TV with 64 MiB of decoded-image memory cache, a 256 MiB disk cache, display-sized ImageIO decoding, request coalescing, priorities and cancellation. Image caches clear on disconnect.
+- Low-priority next-page image prefetch to disk when the last six grid cards appear, limited to two simultaneous requests and cancelled when navigating away. Manual pagination is retained.
+- Lazy Pillow 12.3.0 artist-photo renditions at 640/1280/1920 pixels, preserving aspect ratio and reusing existing originals without upscaling.
+
+### Changed
+
+- Image tickets use stable four-hour expiry buckets with four to eight hours remaining. Playback retains its existing four-hour expiry/pin policy. Image URLs carry source versions to invalidate replaced video stills and changed provider artwork.
+- Artist downloads coalesce per original, allowing separate images to use both workers; temporary files and unused locks are cleaned up. Invalid image responses are rejected before caching.
+- Server and Apple TV source versions are 0.15.0, local app build 15. Windows and TestFlight delivery evidence is recorded separately in the verification notes.
+
+### Fixed
+
+- Repeated catalog loads no longer generate new image URLs within the same window. Apple TV tiles decode to their displayed size instead of retaining full-resolution backgrounds.
+- Live seek verification waits for observable playback progress within ten seconds, accommodating network rebuffering while retaining the progress assertion.
+
 ## [0.14.0] - 2026-10-11
 
 ### Added

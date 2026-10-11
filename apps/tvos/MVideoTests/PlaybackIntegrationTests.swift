@@ -83,7 +83,12 @@ final class PlaybackIntegrationTests: XCTestCase {
         XCTAssertEqual(model.player.currentTime().seconds, duration / 2, accuracy: 1)
         model.player.play()
         let start = model.player.currentTime().seconds
-        try await Task.sleep(for: .seconds(2))
+        // A seek over the live HTTPS connection can rebuffer. Wait for actual
+        // playback progress with a bounded deadline instead of a fixed delay.
+        for _ in 0..<50 {
+            if model.player.currentTime().seconds > start + 0.5 { break }
+            try await Task.sleep(for: .milliseconds(200))
+        }
         XCTAssertGreaterThan(model.player.currentTime().seconds, start + 0.5)
         let prepared: PlaybackResponse = try await api.request("/api/playback/" + ids[0], method: "POST")
         let expectedGain = try XCTUnwrap(prepared.normalization?.gain, "The live sample requires a valid stored measurement.")

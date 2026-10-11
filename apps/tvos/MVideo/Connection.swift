@@ -63,7 +63,7 @@ struct KeychainStore {
 
 private struct Failure: Decodable { let detail: String }
 
-private final class OriginRedirectPolicy: NSObject, URLSessionTaskDelegate {
+final class OriginRedirectPolicy: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         guard let source = task.originalRequest?.url, let target = request.url,

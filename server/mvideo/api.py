@@ -77,7 +77,7 @@ def create_app(settings=None, *, scan_interval=1800):
             await asyncio.to_thread(ingestion.close)
             playback.close()
             metadata.close()
-    app=FastAPI(title='mvideo',version='0.14.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+    app=FastAPI(title='mvideo',version='0.15.0',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
     app.state.library=library; app.state.auth=auth; app.state.playback=playback
     app.state.metadata=metadata; app.state.database=database
     app.state.playlists=playlists
@@ -117,18 +117,21 @@ def create_app(settings=None, *, scan_interval=1800):
         try:return library.get(identity)
         except FileNotFoundError:raise HTTPException(404,'Video is no longer available')
 
+    def thumbnail_url(identity, sid, version):
+        return '/image/'+identity+'/'+auth.ticket(sid,'image:'+identity,cacheable=True)+'?v='+version
+
     def public(row, sid):
         data=library.public(row)
-        data['thumbnail']='/image/'+row['id']+'/'+auth.ticket(sid,'image:'+row['id'])
+        data['thumbnail']=thumbnail_url(row['id'],sid,data.pop('thumbnail_version'))
         return data
 
     @app.get('/health')
-    def health(): return {'service':'mvideo','version':'0.14.0'}
+    def health(): return {'service':'mvideo','version':'0.15.0'}
 
     def playlist_result(value, sid):
         data = value.copy()
         cover = data.pop('cover_id', None)
-        data['thumbnail'] = '/image/'+cover+'/'+auth.ticket(sid,'image:'+cover) if cover else None
+        data['thumbnail'] = thumbnail_url(cover,sid,library.image_version(video(cover))) if cover else None
         if 'items' in data:
             data['items'] = [public(r,sid) | {'available':bool(r['available'])} for r in data['items']]
         return data
@@ -201,7 +204,7 @@ def create_app(settings=None, *, scan_interval=1800):
         if revision is not None and result['revision']!=revision:
             raise HTTPException(409,'Library changed; refresh this page')
         for item in result['items']:
-            item['thumbnail']='/image/'+item['id']+'/'+auth.ticket(sid,'image:'+item['id'])
+            item['thumbnail']=thumbnail_url(item['id'],sid,item.pop('thumbnail_version'))
         return result
 
     @app.get('/api/videos/{identity}')
@@ -213,27 +216,27 @@ def create_app(settings=None, *, scan_interval=1800):
         result=library.facets(kind,q,limit,offset)
         if revision is not None and result['revision']!=revision:
             raise HTTPException(409,'Library changed; refresh this page')
-        artists=metadata.cached_artwork([item['name'] for item in result['items']]) if kind=='artists' else set()
+        artists=metadata.cached_artwork([item['name'] for item in result['items']]) if kind=='artists' else {}
         for item in result['items']:
             identity=item.pop('representative_id')
-            item['thumbnail']='/image/'+identity+'/'+auth.ticket(sid,'image:'+identity)
+            item['thumbnail']=thumbnail_url(identity,sid,item.pop('thumbnail_version'))
             item['image']=item['thumbnail']
             if kind=='artists' and item['name'].casefold() in artists:
-                item['image']=artwork_url(item['name'],0,sid)
+                item['image']=artwork_url(item['name'],0,sid,artists[item['name'].casefold()])
                 item['image_attribution']='fanart.tv'
         return result
 
-    def artwork_url(name,index,sid):
+    def artwork_url(name,index,sid,version):
         import hashlib
         from urllib.parse import quote
         key=hashlib.sha256(name.encode()).hexdigest()
-        return f'/artwork/{key}/{index}/{auth.ticket(sid,"artwork:"+key+":"+str(index))}?name='+quote(name,safe='')
+        return f'/artwork/{key}/{index}/{auth.ticket(sid,"artwork:"+key+":"+str(index),cacheable=True)}?name='+quote(name,safe='')+'&v='+version
 
     @app.get('/api/featured')
     def featured(sid=Depends(session)):
         item=metadata.featured()
         if item:
-            item['image']=artwork_url(item['artist'],item.pop('index'),sid)
+            item['image']=artwork_url(item['artist'],item.pop('index'),sid,item.pop('version'))
         return {'item':item}
 
     @app.get('/api/artist')
@@ -244,7 +247,7 @@ def create_app(settings=None, *, scan_interval=1800):
         name=row['artist']
         data=(metadata.lookup(name) if background else metadata.artist(name)).copy()
         # Never send provider credentials or provider request URLs to the client.
-        data['images']=[artwork_url(name,i,sid) for i,_ in enumerate(data['images'])]
+        data['images']=[artwork_url(name,i,sid,metadata.image_version(url)) for i,url in enumerate(data['images'])]
         return data
 
     @app.post('/api/queue')
@@ -273,9 +276,11 @@ def create_app(settings=None, *, scan_interval=1800):
         return FileResponse(path,media_type='video/mp4',headers={'Cache-Control':'private, no-store'})
 
     @app.get('/image/{identity}/{ticket}')
-    async def thumbnail(identity:str,ticket:str):
+    async def thumbnail(identity:str,ticket:str,v:str|None=Query(None,max_length=128)):
         def resolve():
             if not auth.verify_ticket(ticket,'image:'+identity):raise HTTPException(401)
+            if v is not None and v != library.image_version(video(identity)):
+                raise HTTPException(404,'Thumbnail changed; refresh this page')
             try:path=playback.thumbnail(identity)
             except (OSError,ValueError,subprocess.SubprocessError):raise HTTPException(404,'Thumbnail unavailable')
             return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
@@ -285,12 +290,13 @@ def create_app(settings=None, *, scan_interval=1800):
             return await asyncio.get_running_loop().run_in_executor(playback.thumbnail_pool,resolve)
 
     @app.get('/artwork/{key}/{index}/{ticket}')
-    async def artwork(key:str,index:int,ticket:str,name:str=Query(max_length=512)):
+    async def artwork(key:str,index:int,ticket:str,name:str=Query(max_length=512),width:int|None=None,v:str|None=Query(None,max_length=128)):
+        if width not in (None,640,1280,1920):raise HTTPException(422,'Choose artwork width 640, 1280 or 1920')
         def resolve():
             import hashlib
             if index<0 or hashlib.sha256(name.encode()).hexdigest()!=key or not auth.verify_ticket(ticket,'artwork:'+key+':'+str(index)):
                 raise HTTPException(401)
-            try:path=metadata.image(name,index)
+            try:path=metadata.image(name,index) if width is None and v is None else metadata.image(name,index,width=width,version=v)
             except Exception:raise HTTPException(404,'Artist artwork unavailable')
             return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
         async with artwork_jobs:

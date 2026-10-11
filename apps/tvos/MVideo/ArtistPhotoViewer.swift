@@ -1,4 +1,5 @@
 import SwiftUI
+import NukeUI
 
 struct ArtistPhotoSelection: Identifiable { let id: Int }
 
@@ -7,6 +8,7 @@ struct ArtistPhotoViewer: View {
     let artist: String
     let metadata: ArtistMetadata
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displayScale) private var displayScale
     @State private var index: Int
 
     init(api: API, artist: String, metadata: ArtistMetadata, initialIndex: Int) {
@@ -23,11 +25,13 @@ struct ArtistPhotoViewer: View {
                     .accessibilityIdentifier("photo-position")
             }
             GeometryReader { geometry in
-                AsyncImage(url: try? api.connection.url(metadata.images[index])) { phase in
+                LazyImage(request: ArtworkLoader.request(url: try? api.connection.url(metadata.images[index]), size: geometry.size, scale: displayScale, fit: true)) { phase in
                     if let image = phase.image { image.resizable().scaledToFit() }
                     else if phase.error != nil { Text("This photo is unavailable. Try another photo.").foregroundStyle(Theme.secondary) }
                     else { ProgressView("Loading photo…") }
-                }.frame(width: geometry.size.width, height: geometry.size.height)
+                }.pipeline(ArtworkLoader.pipeline)
+                    .id(index)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
             }
             HStack(spacing: 32) {
                 Text(metadata.imageAttribution ?? "Artist images · fanart.tv").font(.system(size: 21)).foregroundStyle(Theme.secondary)

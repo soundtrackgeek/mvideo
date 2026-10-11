@@ -43,8 +43,12 @@ class Auth:
         hashed = digest(token)
         return hashed if self.valid_hash(hashed) else None
 
-    def ticket(self, session, resource):
-        expires = int(time.time())+4*3600
+    def ticket(self, session, resource, *, cacheable=False):
+        window = 4*3600
+        now = int(time.time())
+        # Image links are stable for four hours, with at least four hours left
+        # at issue time. Playback retains its existing four-hour pin lifetime.
+        expires = (now//window + 2)*window if cacheable else now+window
         payload = f'{session}.{expires}.{resource}'
         signature = hmac.new(self.key, payload.encode(), hashlib.sha256).hexdigest()
         return f'{session}.{expires}.{signature}'

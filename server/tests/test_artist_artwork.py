@@ -77,7 +77,7 @@ def test_automatic_artwork_replaces_old_negative_cache_and_is_shared(metadata):
     assert data['identity_source'] == 'musicbrainz_recording'
     assert data['matched_tracks'] == ['These Are Days']
     assert data['mbid'] == MBID
-    assert metadata.cached_artwork(['10,000 Maniacs']) == {'10,000 maniacs'}
+    assert metadata.cached_artwork(['10,000 Maniacs']) == {'10,000 maniacs': metadata.image_version(data['images'][0])}
     assert metadata.featured()['artist'] == '10,000 Maniacs'
     assert metadata.lookup('10,000 MANIACS')['pending'] is False
     assert len(calls) == 3

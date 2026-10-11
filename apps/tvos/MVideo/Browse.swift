@@ -1,4 +1,5 @@
 import SwiftUI
+import Nuke
 
 struct LibraryShell: View {
     let api: API
@@ -196,6 +197,9 @@ struct BrowseScreen: View {
     var featured: FeaturedArtwork? = nil
     var isCurrentPage = true
     @State private var model = BrowseModel()
+    @State private var imagePrefetcher = ImagePrefetcher(pipeline: ArtworkLoader.pipeline, destination: .diskCache, maxConcurrentRequestCount: 2)
+    @State private var prefetchOffset: Int?
+    @Environment(\.displayScale) private var displayScale
     @State private var query = ""
     @State private var searchField = "all"
     @Environment(PlaybackSession.self) private var playback
@@ -289,6 +293,28 @@ struct BrowseScreen: View {
             guard case .artist(let name) = page, model.loadedScope == scope else { return }
             await model.loadMetadata(api: api, name: name)
         }
+        .task(id: prefetchKey) {
+            imagePrefetcher.stopPrefetching()
+            guard isCurrentPage, model.loadedScope == scope, let offset = prefetchKey.offset else { return }
+            do {
+                let paths: [String]
+                if let kind = page.facet {
+                    var query = scope.query + [URLQueryItem(name: "offset", value: String(offset))]
+                    if let revision = model.revision { query.append(.init(name: "revision", value: String(revision))) }
+                    let result: FacetPage = try await api.request("/api/facets/" + kind, query: query)
+                    paths = result.items.compactMap { $0.image ?? $0.thumbnail }
+                } else {
+                    let result = try await api.videos(scope: scope, offset: offset, revision: model.revision)
+                    paths = result.items.compactMap(\.thumbnail)
+                }
+                try Task.checkCancellation()
+                // Grid width is bounded by its three-column layout. Prefetch to
+                // disk without decoding and let visible requests take priority.
+                let urls = paths.compactMap { try? api.connection.url($0) }
+                    .map { ArtworkLoader.sizedURL($0, pixelWidth: 560 * displayScale) }
+                imagePrefetcher.startPrefetching(with: urls)
+            } catch { /* Prefetch failures never replace the usable page. */ }
+        }
         .onChange(of: sync.status) { _, status in
             if let status, model.revision == status.revision { model.catalogTotal = status.total }
         }
@@ -301,9 +327,9 @@ struct BrowseScreen: View {
             }
         }
         .onChange(of: isCurrentPage) { _, current in
-            if !current { refreshTask?.cancel() }
+            if !current { refreshTask?.cancel(); imagePrefetcher.stopPrefetching() }
         }
-        .onDisappear { refreshTask?.cancel() }
+        .onDisappear { refreshTask?.cancel(); imagePrefetcher.stopPrefetching() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && isCurrentPage && !model.loading && !playback.isFullScreen,
                model.error != nil || model.loadedScope != scope || page == .playlists || scope.playlist != nil { reload() }
@@ -461,6 +487,9 @@ struct BrowseScreen: View {
                             NavigationLink("Explore \(artist)", value: Page.artist(artist)).buttonStyle(NavigationStyle())
                         }
                     }.id(video.id)
+                        .onAppear {
+                            if model.videos.suffix(6).contains(where: { $0.id == video.id }) { prefetchOffset = model.nextOffset }
+                        }
                 }
             }.scrollTargetLayout().focusSection()
         }
@@ -472,8 +501,15 @@ struct BrowseScreen: View {
                     FacetCard(api: api, facet: facet, title: page == .decades ? "\(facet.name)s" : facet.name,
                               artistName: page == .artists ? facet.name : nil)
                 }.buttonStyle(CardStyle()).focused($focus, equals: "facet-" + facet.name).id("facet-" + facet.name).accessibilityIdentifier("facet-" + facet.name)
+                    .onAppear {
+                        if model.facets.suffix(6).contains(where: { $0.name == facet.name }) { prefetchOffset = model.nextOffset }
+                    }
             }
         }.scrollTargetLayout().focusSection()
+    }
+    private var prefetchKey: ArtworkPrefetchKey {
+        ArtworkPrefetchKey(scope: scope, offset: prefetchOffset == model.nextOffset ? prefetchOffset : nil,
+                           revision: model.revision, active: isCurrentPage)
     }
     private func artistPhotos(_ metadata: ArtistMetadata) -> some View {
         VStack(alignment: .leading, spacing: 20) {
