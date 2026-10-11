@@ -11,6 +11,7 @@
 
 - Apple TV source version is 0.15.2; the compatible Windows server remains 0.15.0. Native remote regression coverage and delivery status are recorded in the verification notes.
 - All 52 native tests pass; the final seven targeted checks also pass after adding Select reopening and Up Next dismissal coverage.
+- Xcode Cloud build 21 succeeded from `ef14f0b`; TestFlight 0.15.2 (21) is Testing in mvideo testers.
 
 ## [0.15.1] - 2026-10-11
 
