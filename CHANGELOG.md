@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.2] - 2026-10-11
+
+### Fixed
+
+- Apple TV Back/Menu hides the visible seek bar and playback controls before leaving the video, retaining playback and the current queue position. A subsequent press with controls hidden closes the selection and restores the library card's focus. Playback controls reopen on remote interaction.
+- Back/Menu returns from a main browsing tab to Home with focus restored, after backing out of any detail pages. Floating playback continues during back navigation.
+
+### Changed
+
+- Apple TV source version is 0.15.2; the compatible Windows server remains 0.15.0. Native remote regression coverage and delivery status are recorded in the verification notes.
+- All 52 native tests pass; the final seven targeted checks also pass after adding Select reopening and Up Next dismissal coverage.
+
 ## [0.15.1] - 2026-10-11
 
 ### Fixed

@@ -19,6 +19,7 @@ struct QueueCursor: Equatable {
     private(set) var model: PlayerModel?
     private(set) var presentation = Presentation.fullScreen
     private(set) var dismissalCount = 0
+    @ObservationIgnored weak var nativePlayer: NativePlayer.Coordinator?
     var artistToOpen: String?
     var pictureInPictureError: String?
     var isFullScreen: Bool { model != nil && presentation == .fullScreen }
@@ -269,7 +270,7 @@ struct PlaybackScreen: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(fullScreen ? "playback-screen" : "mini-player")
         .accessibilityValue(model.finished ? "Selection finished" : "\(model.preparing ? "Preparing video" : "Video") \(model.queue.index + 1) of \(model.queue.ids.count)")
-        .onExitCommand(perform: fullScreen ? { session.stop() } : browseBack)
+        .onExitCommand(perform: fullScreen ? { session.nativePlayer?.goBack() } : nil)
         .onChange(of: fullScreen) { _, fullScreen in
             if !fullScreen && !systemPictureInPicture { expandFocused = true }
         }
@@ -292,6 +293,7 @@ struct PlaybackScreen: View {
                 }
             }.foregroundStyle(Theme.ivory)
         }
+        .onExitCommand { session.stop() }
     }
     private var miniPlayerControls: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -332,6 +334,7 @@ struct PlaybackScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .foregroundStyle(Theme.ivory)
         .focusSection()
+        .onExitCommand(perform: browseBack)
     }
 }
 // Keep the playback context from finger-down: AVKit can reveal its controls
@@ -358,15 +361,16 @@ struct NativePlayer: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = true
         controller.delegate = context.coordinator
         context.coordinator.controller = controller
-        for gesture in context.coordinator.playlistGestures { controller.view.addGestureRecognizer(gesture) }
+        session.nativePlayer = context.coordinator
+        for gesture in context.coordinator.gestures { controller.view.addGestureRecognizer(gesture) }
         return controller
     }
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
         context.coordinator.model = model
         let fullScreen = session.presentation == .fullScreen
-        controller.showsPlaybackControls = fullScreen
         controller.view.isUserInteractionEnabled = fullScreen
         context.coordinator.updateFocus(fullScreen: fullScreen)
+        controller.showsPlaybackControls = fullScreen && context.coordinator.playbackControlsEnabled
         for gesture in context.coordinator.playlistGestures {
             gesture.isEnabled = fullScreen && !model.preparing && model.error == nil && !model.finished
         }
@@ -388,8 +392,9 @@ struct NativePlayer: UIViewControllerRepresentable {
         controller.customInfoViewControllers = [queue]
     }
     static func dismantleUIViewController(_ controller: AVPlayerViewController, coordinator: Coordinator) {
-        for gesture in coordinator.playlistGestures { controller.view.removeGestureRecognizer(gesture) }
+        for gesture in coordinator.gestures { controller.view.removeGestureRecognizer(gesture) }
         controller.delegate = nil
+        if coordinator.session.nativePlayer === coordinator { coordinator.session.nativePlayer = nil }
         coordinator.controller = nil
     }
     final class Coordinator: NSObject, UIGestureRecognizerDelegate, AVPlayerViewControllerDelegate {
@@ -397,11 +402,14 @@ struct NativePlayer: UIViewControllerRepresentable {
         let session: PlaybackSession
         weak var controller: AVPlayerViewController?
         private var transportBarVisible = false
+        private var controlsSuppressed = false
+        var playbackControlsEnabled: Bool { !controlsSuppressed }
         private var pictureInPictureStarting = false
         private var wasFullScreen = false
         func updateFocus(fullScreen: Bool) {
             defer { wasFullScreen = fullScreen }
             guard fullScreen && !wasFullScreen else { return }
+            controlsSuppressed = false
             // An overlay has no presentation transition to transfer focus from
             // the disabled library. Ask its containing focus environment instead.
             DispatchQueue.main.async { [weak self] in
@@ -414,6 +422,16 @@ struct NativePlayer: UIViewControllerRepresentable {
         lazy var nextGesture = makeSwipe(direction: .right)
         lazy var previousGesture = makeSwipe(direction: .left)
         var playlistGestures: [PlaylistSwipeGestureRecognizer] { [nextGesture, previousGesture] }
+        lazy var controlRevealGesture: UITapGestureRecognizer = {
+            let gesture = UITapGestureRecognizer(target: self, action: #selector(revealControls))
+            gesture.name = "Restore playback controls after Menu"
+            gesture.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirect.rawValue)]
+            gesture.allowedPressTypes = [UIPress.PressType.select, .playPause, .upArrow, .downArrow, .leftArrow, .rightArrow].map { NSNumber(value: $0.rawValue) }
+            gesture.cancelsTouchesInView = false
+            gesture.delegate = self
+            return gesture
+        }()
+        var gestures: [UIGestureRecognizer] { [controlRevealGesture] + playlistGestures }
         private func makeSwipe(direction: UISwipeGestureRecognizer.Direction) -> PlaylistSwipeGestureRecognizer {
             let gesture = PlaylistSwipeGestureRecognizer(target: self, action: #selector(changeVideo(_:)))
             gesture.name = direction == .right ? "Swipe right for next video" : "Swipe left for previous video"
@@ -425,11 +443,27 @@ struct NativePlayer: UIViewControllerRepresentable {
             return gesture
         }
         init(model: PlayerModel, session: PlaybackSession) { self.model = model; self.session = session }
+        func goBack() {
+            guard session.model === model, session.isFullScreen, !pictureInPictureStarting,
+                  let controller else { return }
+            if controller.presentedViewController != nil {
+                controller.dismiss(animated: true)
+            } else if transportBarVisible {
+                controlsSuppressed = true
+                controller.showsPlaybackControls = false
+                transportBarVisible = false
+            } else {
+                session.stop()
+            }
+        }
         private var canChangeVideo: Bool {
             session.model === model && session.isFullScreen && !pictureInPictureStarting &&
                 !model.preparing && model.error == nil && !model.finished
         }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            if gestureRecognizer === controlRevealGesture {
+                return controlsSuppressed && canChangeVideo
+            }
             // Decide at finger-down, not completion. Paused scrubbing, menus,
             // the mini player and Up Next keep their normal touch behavior.
             guard let swipe = gestureRecognizer as? PlaylistSwipeGestureRecognizer,
@@ -444,17 +478,33 @@ struct NativePlayer: UIViewControllerRepresentable {
             swipe.startingIndex = model.queue.index
             return true
         }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive press: UIPress) -> Bool {
+            if gestureRecognizer === controlRevealGesture && controlsSuppressed && canChangeVideo && press.type != .menu {
+                // Restore before AVKit receives this press, so Select opens
+                // the controls immediately. The observer never consumes it.
+                revealControls()
+            }
+            return false
+        }
+        @objc private func revealControls() {
+            guard session.model === model, session.isFullScreen, !pictureInPictureStarting else { return }
+            controlsSuppressed = false
+            // Re-enabling controls after a remote press can bypass AVKit's
+            // visibility transition callback, especially while paused.
+            transportBarVisible = true
+            controller?.showsPlaybackControls = true
+        }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             // AVKit's touch/pan recognizers may reveal controls during a swipe.
             // They must not cancel a playlist swipe that started with controls hidden.
-            gestureRecognizer is PlaylistSwipeGestureRecognizer
+            gestureRecognizer is PlaylistSwipeGestureRecognizer || gestureRecognizer === controlRevealGesture
         }
         func playerViewController(_ playerViewController: AVPlayerViewController, willTransitionToVisibilityOfTransportBar visible: Bool, with coordinator: AVPlayerViewControllerAnimationCoordinator) {
-            transportBarVisible = visible
+            transportBarVisible = visible && !controlsSuppressed
         }
         func playerViewControllerShouldDismiss(_ playerViewController: AVPlayerViewController) -> Bool {
-            // AVKit cannot dismiss an embedded controller itself. Menu still
-            // ends full-screen playback through the owning library session.
+            // AVKit calls this after handling its controls and info panels.
+            // The library removes the embedded player when Menu goes back.
             if session.model === model && session.isFullScreen && !pictureInPictureStarting { session.stop() }
             return false
         }

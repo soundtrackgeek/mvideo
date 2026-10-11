@@ -1,5 +1,13 @@
 # Verification — updated 2026-10-11
 
+## 0.15.2 Back/Menu navigation
+
+- Apple TV source **0.15.2**, local build **16**. The Windows server remains **0.15.0**; no service update is required.
+- A new XCUIRemote test reproduced the original premature exit while the seek bar/buttons were visible. Full-screen Menu now delegates to the retained native coordinator, dismissing a presented panel first or hiding the transport controls before stopping playback. Select/Play/Pause/directional input restores controls; SwiftUI updates retain their hidden state. Loading, error and finished screens still return directly to the library.
+- **52 native tests passed, zero failures or skips** (204.80 seconds), including live Windows HTTPS playback/seek/automatic-next, all model tests, audio progress after Menu, swipe navigation with controls hidden, PiP startup guards, artist/mini-player continuity, photo dismissal, search keyboard dismissal, playlist detail → Playlists → Home, and library focus/scroll restoration. Result: `test_sim_2026-10-11T17-51-59-751Z_pid45839_7be10fe5.xcresult` in the local XcodeBuildMCP workspace.
+- After extending the remote test to cover Select reopening and Up Next dismissal, **all seven targeted remote/mini-player tests passed, zero failures or skips** (55.11 seconds). Result: `test_sim_2026-10-11T17-57-24-461Z_pid45839_587e0f5a.xcresult`. Up Next closes before the transport controls, and the final Menu returns to the same library card without changing the selection.
+- Xcode Cloud/TestFlight delivery is pending the source push. Physical Siri Remote behavior and installation of the new build remain owner checks.
+
 ## 0.15.0 image loading and caching
 
 - Server and Apple TV source **0.15.0**, local app build **15**. Nuke/NukeUI **13.2.0** is pinned in the project and committed SwiftPM resolution; Pillow **12.3.0** is pinned in the server package.

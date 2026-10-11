@@ -11,6 +11,7 @@ struct LibraryShell: View {
     @State private var requestedArtwork = false
     @State private var playback = PlaybackSession()
     @State private var sync = LibrarySync()
+    @FocusState private var navigationFocus: Page?
     @Environment(\.scenePhase) private var scenePhase
     private let tabs: [(String, Page)] = [("Home", .home), ("Search", .search), ("Playlists", .playlists), ("Artists", .artists), ("Years", .years), ("Decades", .decades)]
     var body: some View {
@@ -24,7 +25,9 @@ struct LibraryShell: View {
                                 Text(label)
                                 Capsule().fill(tab == page ? Theme.amber : .clear).frame(height: 3)
                             }
-                        }.buttonStyle(NavigationStyle()).accessibilityIdentifier("nav-" + label.lowercased())
+                        }.buttonStyle(NavigationStyle())
+                            .focused($navigationFocus, equals: page)
+                            .accessibilityIdentifier("nav-" + label.lowercased())
                     }
                     Spacer()
                     Button { showConnection = true } label: { Image(systemName: "network") }.buttonStyle(NavigationStyle()).accessibilityLabel("Connection")
@@ -33,6 +36,7 @@ struct LibraryShell: View {
             }
             .navigationDestination(for: Page.self) { page in BrowseScreen(api: api, page: page, isCurrentPage: path.last == page) }
             .background(Theme.background)
+            .onExitCommand(perform: path.isEmpty && !playback.isFullScreen ? browseBack : nil)
         }
         .foregroundStyle(Theme.ivory)
         .environment(playback)
@@ -44,9 +48,7 @@ struct LibraryShell: View {
         .accessibilityHidden(playback.isFullScreen)
         .overlay(alignment: .bottomTrailing) {
             if let model = playback.model {
-                PlaybackScreen(model: model, session: playback, browseBack: path.isEmpty ? nil : {
-                    if !path.isEmpty { path.removeLast() }
-                })
+                PlaybackScreen(model: model, session: playback, browseBack: browseBack)
                     .id(ObjectIdentifier(model))
             }
         }
@@ -82,6 +84,13 @@ struct LibraryShell: View {
                 Button("Disconnect and pair again") { playback.stop(); Task { await session.disconnect(); showConnection = false } }.buttonStyle(PillStyle())
                 Button("Close") { showConnection = false }.buttonStyle(PillStyle())
             }.padding(70)
+        }
+    }
+    private var browseBack: (() -> Void)? {
+        guard !path.isEmpty || tab != .home else { return nil }
+        return {
+            if !path.isEmpty { path.removeLast() }
+            else { tab = .home; navigationFocus = .home }
         }
     }
 }

@@ -3,6 +3,63 @@ import XCTest
 @testable import MVideo
 
 final class RemoteNavigationTests: XCTestCase {
+    @MainActor func testMenuRetainsAudioQueueAndSwipeNavigationBeforeLeavingPlayback() async throws {
+        try await withPlayback { model, session, coordinator in
+            let controller = AVPlayerViewController()
+            controller.player = model.player
+            coordinator.controller = controller
+            coordinator.updateFocus(fullScreen: true)
+            let animation = ImmediateAnimationCoordinator()
+            coordinator.playerViewController(controller, willTransitionToVisibilityOfTransportBar: true, with: animation)
+            let item = try XCTUnwrap(model.player.currentItem)
+            let queue = model.queue
+            let position = model.player.currentTime().seconds
+
+            coordinator.goBack()
+
+            XCTAssertTrue(session.isFullScreen)
+            XCTAssertTrue(model.player.currentItem === item)
+            XCTAssertEqual(model.queue, queue)
+            XCTAssertGreaterThan(model.player.rate, 0, "Menu must leave the video playing.")
+            for _ in 0..<50 where model.player.currentTime().seconds <= position + 0.25 {
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            XCTAssertGreaterThan(model.player.currentTime().seconds, position + 0.25)
+
+            // An outgoing visibility callback must not reopen controls or block swipes.
+            coordinator.playerViewController(controller, willTransitionToVisibilityOfTransportBar: true, with: animation)
+            let swipe = completedSwipe(.right)
+            XCTAssertTrue(coordinator.gestureRecognizer(swipe, shouldReceive: RemoteTouch()))
+            coordinator.changeVideo(swipe)
+            XCTAssertEqual(model.queue.index, 1)
+            try await waitForPlayback(model)
+            coordinator.goBack()
+            XCTAssertNil(session.model, "Menu with controls hidden returns to the library.")
+            XCTAssertNil(model.player.currentItem)
+        }
+    }
+
+    @MainActor func testMenuIgnoresPictureInPictureStartupAndFloatingPlayback() async throws {
+        try await withPlayback { model, session, coordinator in
+            let controller = AVPlayerViewController()
+            controller.player = model.player
+            coordinator.controller = controller
+            let item = try XCTUnwrap(model.player.currentItem)
+            coordinator.playerViewControllerWillStartPictureInPicture(controller)
+            coordinator.goBack()
+            XCTAssertTrue(session.isFullScreen)
+            XCTAssertTrue(model.player.currentItem === item)
+            coordinator.playerViewController(controller, failedToStartPictureInPictureWithError: NSError(domain: "test", code: 1))
+            session.minimize()
+            coordinator.goBack()
+            XCTAssertTrue(session.model === model)
+            XCTAssertTrue(model.player.currentItem === item)
+            session.restore()
+            coordinator.goBack()
+            XCTAssertNil(session.model)
+        }
+    }
+
     @MainActor func testSwipesMoveBothWaysAndRespectPlaylistBounds() async throws {
         try await withPlayback { model, session, coordinator in
             for gesture in coordinator.playlistGestures {

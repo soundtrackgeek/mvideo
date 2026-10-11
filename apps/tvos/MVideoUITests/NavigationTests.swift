@@ -1,6 +1,93 @@
 import XCTest
 
 final class NavigationTests: XCTestCase {
+    func testMenuHidesPlaybackControlsBeforeReturningToLibrary() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchEnvironment["MVIDEO_TEST_ARTIST"] = "'Til Tuesday"
+        app.launch()
+        try XCTSkipIf(app.textFields["server-origin"].waitForExistence(timeout: 3), "Pair the simulator with the running library.")
+        let videos = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'video-'"))
+        XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 20))
+        let remote = XCUIRemote.shared
+        for _ in 0..<12 where !videos.firstMatch.hasFocus { remote.press(.down) }
+        XCTAssertTrue(videos.firstMatch.hasFocus, app.debugDescription)
+        let identifier = videos.firstMatch.identifier
+        remote.press(.select)
+        let screen = app.otherElements["playback-screen"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 20))
+        expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 1 of'"), evaluatedWith: screen)
+        waitForExpectations(timeout: 40)
+        let selection = screen.value as? String
+        let next = app.cells["Next video"]
+
+        // Paused controls and playing controls both go back to the video first.
+        for _ in 0..<2 {
+            remote.press(.playPause)
+            XCTAssertTrue(next.waitForExistence(timeout: 5), app.debugDescription)
+            remote.press(.menu)
+            XCTAssertTrue(next.waitForNonExistence(timeout: 5), app.debugDescription)
+            XCTAssertTrue(screen.exists, "Menu must hide the controls without leaving the video.")
+            XCTAssertEqual(screen.value as? String, selection, "Dismissing controls must retain the queue position.")
+        }
+        saveScreenshot(app, name: "Menu returns to unobscured video")
+        remote.press(.select)
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        let queueHeading = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '1 of ' AND label CONTAINS ' · '")).firstMatch
+        for _ in 0..<4 where !queueHeading.exists { remote.press(.down) }
+        XCTAssertTrue(queueHeading.waitForExistence(timeout: 5), app.debugDescription)
+        remote.press(.menu)
+        XCTAssertTrue(queueHeading.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(screen.exists, "Menu from Up Next must return to the video.")
+        XCTAssertEqual(screen.value as? String, selection)
+        leavePlayback(app)
+        XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 10))
+        expectation(for: NSPredicate(format: "hasFocus == true"), evaluatedWith: app.buttons[identifier])
+        waitForExpectations(timeout: 5)
+    }
+
+    func testMenuReturnsFromPlaylistToTabThenHome() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        try XCTSkipUnless(app.buttons["nav-home"].waitForExistence(timeout: 10), "Pair the simulator with the running library.")
+        let remote = XCUIRemote.shared
+        remote.press(.right); remote.press(.right); remote.press(.select)
+        XCTAssertTrue(app.buttons["refresh-playlists"].waitForExistence(timeout: 15))
+        let playlists = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'playlist-'"))
+        XCTAssertTrue(playlists.firstMatch.waitForExistence(timeout: 15))
+        let focusedPlaylist = app.buttons.matching(NSPredicate(format: "hasFocus == true AND identifier BEGINSWITH 'playlist-'" )).firstMatch
+        for _ in 0..<10 where !focusedPlaylist.exists { remote.press(.down) }
+        XCTAssertTrue(focusedPlaylist.exists, app.debugDescription)
+        remote.press(.select)
+        XCTAssertTrue(app.buttons["refresh-playlist"].waitForExistence(timeout: 15))
+        remote.press(.menu)
+        XCTAssertTrue(app.buttons["refresh-playlists"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["refresh-playlist"].exists)
+        remote.press(.menu)
+        XCTAssertTrue(app.staticTexts["Your own music\ntelevision."].waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(app.buttons["nav-home"].hasFocus, app.debugDescription)
+    }
+
+    func testMenuDismissesSearchKeyboardBeforeReturningHome() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        try XCTSkipUnless(app.buttons["nav-home"].waitForExistence(timeout: 10), "Pair the simulator with the running library.")
+        let remote = XCUIRemote.shared
+        remote.press(.right); remote.press(.select)
+        let search = app.textFields["search-input"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        remote.press(.down); remote.press(.select)
+        XCTAssertTrue(app.buttons["done"].waitForExistence(timeout: 5))
+        remote.press(.menu)
+        XCTAssertTrue(app.buttons["done"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(search.exists, "Menu from the keyboard must keep the Search page open.")
+        remote.press(.menu)
+        XCTAssertTrue(app.staticTexts["Your own music\ntelevision."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["nav-home"].hasFocus)
+    }
+
     @MainActor func testLiveLibraryRefreshKeepsRemoteFocus() async throws {
         continueAfterFailure = false
         func change(_ route: String) async throws {
@@ -92,8 +179,7 @@ final class NavigationTests: XCTestCase {
         XCTAssertTrue(screen.waitForExistence(timeout: 10))
         XCTAssertTrue((screen.value as? String)?.hasPrefix("Video 1 of") == true)
         saveScreenshot(app, name: "Floating playback restored to full screen")
-        remote.press(.menu)
-        XCTAssertTrue(screen.waitForNonExistence(timeout: 10))
+        leavePlayback(app)
         XCTAssertFalse(mini.exists)
     }
 
@@ -163,7 +249,7 @@ final class NavigationTests: XCTestCase {
         expectation(for: NSPredicate(format: "value BEGINSWITH 'Video 1 of'"), evaluatedWith: screen)
         waitForExpectations(timeout: 40)
         saveScreenshot(app, name: "Previous returns to the preceding video after three seconds")
-        remote.press(.menu)
+        leavePlayback(app)
         XCTAssertTrue(videos.firstMatch.waitForExistence(timeout: 10))
     }
     func testAutomaticallyMatchedArtistPhotosAndTiles() throws {
@@ -269,8 +355,7 @@ final class NavigationTests: XCTestCase {
         remote.press(.select)
         XCTAssertTrue(app.otherElements["playback-screen"].waitForExistence(timeout: 30))
         let playback = XCTAttachment(screenshot: app.screenshot()); playback.name = "Real library playback"; playback.lifetime = .keepAlways; add(playback)
-        remote.press(.menu)
-        XCTAssertTrue(app.otherElements["playback-screen"].waitForNonExistence(timeout: 5), app.debugDescription)
+        leavePlayback(app)
         XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 10))
         let restored = NSPredicate(format: "hasFocus == true")
         expectation(for: restored, evaluatedWith: app.buttons[identifier])
@@ -311,8 +396,7 @@ final class NavigationTests: XCTestCase {
         let identifier = video.identifier
         remote.press(.select)
         XCTAssertTrue(app.otherElements["playback-screen"].waitForExistence(timeout: 40))
-        remote.press(.menu)
-        XCTAssertTrue(app.otherElements["playback-screen"].waitForNonExistence(timeout: 5), app.debugDescription)
+        leavePlayback(app)
         XCTAssertTrue(app.buttons[identifier].waitForExistence(timeout: 10))
         expectation(for: NSPredicate(format: "hasFocus == true"), evaluatedWith: app.buttons[identifier])
         waitForExpectations(timeout: 5)
@@ -320,6 +404,18 @@ final class NavigationTests: XCTestCase {
     private func saveScreenshot(_ app: XCUIApplication, name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    private func leavePlayback(_ app: XCUIApplication) {
+        let screen = app.otherElements["playback-screen"]
+        let remote = XCUIRemote.shared
+        let controls = app.cells["Next video"]
+        if controls.exists {
+            remote.press(.menu)
+            XCTAssertTrue(controls.waitForNonExistence(timeout: 5))
+            XCTAssertTrue(screen.exists, "The first Menu press returns to the video.")
+        }
+        remote.press(.menu)
+        XCTAssertTrue(screen.waitForNonExistence(timeout: 10), app.debugDescription)
     }
     func testConnectionScreenRespondsToRemote() {
         let app = XCUIApplication(); app.launch()
