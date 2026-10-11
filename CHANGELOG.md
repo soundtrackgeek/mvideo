@@ -6,6 +6,10 @@
 
 - Give binary artwork validation cases short pytest IDs so Windows can set its current-test environment variable and execute the fixtures. Server and Apple TV packages remain 0.15.0; this patch changes verification only.
 
+### Changed
+
+- Verified all 185 server tests against the installed Windows 0.15.0 wheel using a fresh temporary test directory, with zero failures, errors or skips. Local server and native validation and TestFlight delivery are recorded in the verification notes.
+
 ## [0.15.0] - 2026-10-11
 
 ### Added
