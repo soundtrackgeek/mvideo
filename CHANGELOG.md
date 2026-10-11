@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.1] - 2026-10-11
+
+### Fixed
+
+- Give binary artwork validation cases short pytest IDs so Windows can set its current-test environment variable and execute the fixtures. Server and Apple TV packages remain 0.15.0; this patch changes verification only.
+
 ## [0.15.0] - 2026-10-11
 
 ### Added
@@ -13,6 +19,7 @@
 - Image tickets use stable four-hour expiry buckets with four to eight hours remaining. Playback retains its existing four-hour expiry/pin policy. Image URLs carry source versions to invalidate replaced video stills and changed provider artwork.
 - Artist downloads coalesce per original, allowing separate images to use both workers; temporary files and unused locks are cleaned up. Invalid image responses are rejected before caching.
 - Server and Apple TV source versions are 0.15.0, local app build 15. Windows and TestFlight delivery evidence is recorded separately in the verification notes.
+- Deployed 0.15.0 to Windows after an integrity-checked backup, retaining original library records and sessions. Both live routes pass stable-URL/rendition/Shuffle/revocation checks. Xcode Cloud build 20 succeeded and TestFlight 0.15.0 (20) is Testing in mvideo testers; 44 distinct native tests pass, including playback against the updated service.
 
 ### Fixed
 

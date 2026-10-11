@@ -162,7 +162,8 @@ def test_same_original_coalesces_across_sizes(service, monkeypatch):
 
 
 @pytest.mark.parametrize('content,content_type', [(b'invalid', 'image/jpeg'), (jpeg(), 'text/html'),
-                                               (jpeg((5000, 4000)), 'image/jpeg'), (b'x'*(10*1024**2+1), 'image/jpeg')])
+                                               (jpeg((5000, 4000)), 'image/jpeg'), (b'x'*(10*1024**2+1), 'image/jpeg')],
+                         ids=['malformed', 'wrong-content-type', 'too-many-pixels', 'too-many-bytes'])
 def test_invalid_artwork_does_not_poison_cache(service, monkeypatch, content, content_type):
     app, _, _, _ = service
     transport(monkeypatch, lambda request: httpx.Response(200, content=content, headers={'Content-Type': content_type}))
