@@ -2,7 +2,7 @@
 
 ## 0.13.0 live Apple TV library synchronization
 
-- Source versions: server and Apple TV **0.13.0**, local app build **13**. Windows deployment and Xcode Cloud/TestFlight delivery are checked separately below.
+- Source versions: server and Apple TV **0.13.0**, local app build **13**. Windows deployment and Xcode Cloud/TestFlight delivery are verified below; TestFlight build is **19**.
 - **154 server tests passed** locally (33.08 seconds), including real HTTP SSE frames/headers, authentication/revocation, CLI-originated additions/replacements/removals, artwork completion ordering, bounded replay recovery and worker-queue deferral. The existing Starlette TestClient deprecation warning remains.
 - **37 native tests passed, zero failures or skips** (48.17 seconds), covering event decoding/transport/authentication, older-server fallback, monitor cancellation, targeted artwork updates, reconnect resynchronization and atomic multi-page refresh/cancellation/conflicts, plus existing audio/playback/remote behavior. The remote UI test verifies the 12-video notice leaves focus untouched and Refresh restores the same video after its grid position changes. Final result: `test_sim_2026-10-11T11-24-11-641Z_pid72918_d7c5a0eb.xcresult` in the local XcodeBuildMCP workspace.
 - The separate native remote-focus check uses only temporary generated media and catalog state (`server/tests/tvos_sync_fixture.py`, localhost:8766); it does not alter the Windows library. Run the fixture, then select `MVideoUITests/NavigationTests/testLiveLibraryRefreshKeepsRemoteFocus`. Without that fixture, the test skips.
@@ -10,9 +10,16 @@
 - Existing server/app clients remain compatible. Video-page notices on older servers use two-minute status polling; live artwork and revision-aware facet notices require server 0.13.0. Physical Apple TV behavior needs separate owner verification.
 
 
+- Xcode Cloud **build 19** for `8077228` succeeded with Xcode 26.6, including the TestFlight Internal Testing post-action. App Store Connect shows **0.13.0 (19)** as **Testing** in **mvideo testers**, with one invite and a 90-day expiry. [TestFlight build](https://appstoreconnect.apple.com/teams/b1e1e3ed-bd76-448e-bf6c-7211ea008199/apps/6818073365/testflight/tvos/c875adb2-035c-4f61-a232-476f871884fd). Physical installation and live refresh on the owner's Apple TV remain separate checks.
+- **Two additional live native playback tests passed, zero failures or skips** (11.66 seconds) against the updated Windows HTTPS service: Home/artwork loading, the full-library queue, playback preparation, real AVPlayer audio/seek, stored normalization and automatic next. This makes **39 distinct passing native tests** for this release. Result: `test_sim_2026-10-11T11-32-50-603Z_pid72918_65bd7224.xcresult`.
+- Deployed `8077228` through the existing Windows updater after an integrity-checked SQLite backup at `C:\ProgramData\mvideo\backups\before-live-sync-0.13.0-20261011.sqlite3`. Loopback and private HTTPS health both report **0.13.0**. The existing task was restarted successfully.
+- **All six new event tests passed on Windows** against the installed wheel (7.26 seconds). Private HTTPS delivered the SSE snapshot at revision **16,550**, with **16,343 available videos**, followed by a heartbeat comment; cache/stream headers and session revocation were checked. The temporary verification session was removed.
+- Pre/post deployment record counts match: **16,357 catalog rows**, **16,356 loudness rows**, **three playlists / 103 playlist entries**, and **four existing sessions**. The available-library status reports **16,326 measured / 17 errors / zero pending or stale**, with the polling watcher active and loudness worker idle. Historical unavailable records explain the larger stored-row counts. The simulator's real-library pairing was restored after the isolated UI test.
+
+
 ## Installed Windows service
 
-The independent mvideo **0.12.0** service uses the Python environment at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. The current package was built on Windows from committed release `72705ce`, staged at `L:\mvideo-service\deployments\0.12.0-72705ce`, and installed as a wheel; the older service source directory is no longer the imported editable package.
+The independent mvideo **0.13.0** service uses the Python environment at `L:\mvideo-service`, reads `L:\MusicVideos`, and stores runtime data under `C:\ProgramData\mvideo`. Python 3.13 and `C:\ffmpeg\bin` are used. The current package was built on Windows from committed release `8077228`, staged by `scripts/windows-update-service.ps1`, and installed as a wheel; the older service source directory is no longer the imported editable package.
 
 The **mvideo Library** scheduled task is running as Local Service (`S-1-5-19`) with an `MSFT_TaskBootTrigger`, 30-second startup delay, failure restart and no execution time limit. It requires no interactive login. State/code ACLs and encrypted machine-DPAPI provider loading were installed with owner-approved administrator access. A fresh task launch and HTTPS health response passed. An actual Windows reboot was not performed. Tailscale's Windows service is Automatic.
 

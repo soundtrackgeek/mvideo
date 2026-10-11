@@ -17,6 +17,7 @@
 - Artist tiles and pages update from artwork completion events instead of polling every 2–3 seconds. Visible artwork is rechecked after reconnecting and during event outages.
 - Refresh results are committed together; failed, cancelled or inconsistent refreshes retain the usable page and update notice. Facets now return/check catalog revisions during pagination.
 - Server and Apple TV source versions are 0.13.0; local Apple TV build is 13. Windows deployment, Cloud delivery and physical-device verification are recorded separately in the verification notes.
+- Deployed 0.13.0 to Windows with verified private HTTPS event snapshots/heartbeats and retained catalog, measurements, playlists and sessions. TestFlight 0.13.0 (19) is Testing in mvideo testers. All 154 local server tests, six Windows event tests and 39 distinct native tests passed; physical Apple TV verification remains separate.
 
 ## [0.12.0] - 2026-10-04
 
